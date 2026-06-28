@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, ChevronRight } from 'lucide-react';
 
 interface FileUploaderProps {
   label: string;
@@ -27,12 +27,12 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       type="button"
       onClick={() => inputRef.current?.click()}
       className={`
-        w-full border-2 border-dashed rounded-2xl p-4 flex items-center gap-4
+        w-full rounded-2xl p-4 flex items-center gap-3.5
         transition-all duration-200 active:scale-[0.98]
         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500
         ${selectedFileName
-          ? 'border-emerald-500/50 bg-emerald-950/10'
-          : 'border-slate-600/50 bg-slate-800/20'}
+          ? 'bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_15px_-3px_rgba(16,185,129,0.15)]'
+          : 'bg-slate-800/60 border border-slate-700/50 shadow-lg shadow-black/20'}
       `}
       aria-label={selectedFileName ? `${label}: ${selectedFileName}. Tap to change.` : `${label}. Tap to select file.`}
     >
@@ -50,7 +50,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({
 
       <div className={`
         w-12 h-12 rounded-xl flex items-center justify-center shrink-0 overflow-hidden
-        ${selectedFileName ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/40 text-slate-400'}
+        ${selectedFileName
+          ? 'bg-emerald-500/20 text-emerald-400'
+          : 'bg-gradient-to-br from-slate-700/60 to-slate-700/30 text-slate-300'}
       `}>
         {previewUrl ? (
           <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
@@ -59,7 +61,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
 
       <div className="flex-1 text-left min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className={`text-sm font-semibold truncate ${selectedFileName ? 'text-emerald-400' : 'text-slate-200'}`}>
+          <span className={`text-sm font-semibold truncate ${selectedFileName ? 'text-emerald-400' : 'text-white'}`}>
             {selectedFileName || label}
           </span>
           {selectedFileName && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
@@ -68,6 +70,8 @@ const FileUploader: React.FC<FileUploaderProps> = ({
           {selectedFileName ? 'Tap to change' : hint}
         </span>
       </div>
+
+      <ChevronRight className={`w-4 h-4 shrink-0 ${selectedFileName ? 'text-emerald-500/40' : 'text-slate-600'}`} />
     </button>
   );
 };
