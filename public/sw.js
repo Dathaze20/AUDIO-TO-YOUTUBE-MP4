@@ -1,4 +1,4 @@
-const CACHE_NAME = 'audio-to-youtube-mp4-v1';
+const CACHE_NAME = 'audio-to-youtube-mp4-v2';
 const STATIC_ASSETS = [
   './',
   './index.html'
