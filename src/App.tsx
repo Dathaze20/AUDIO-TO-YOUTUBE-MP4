@@ -211,11 +211,15 @@ const App: React.FC = () => {
         throw new Error('Your browser does not support video recording. Please use Chrome or Edge.');
       }
 
-      const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
-        ? 'video/mp4;codecs=avc1'
-        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-          ? 'video/webm;codecs=vp8,opus'
-          : 'video/webm';
+      // Prefer WebM with explicit audio codec — MP4 MediaRecorder on some
+      // Android devices drops audio when only the video codec is specified.
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
+        : MediaRecorder.isTypeSupported('video/mp4;codecs=avc1,mp4a.40.2')
+          ? 'video/mp4;codecs=avc1,mp4a.40.2'
+          : MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
+            ? 'video/mp4;codecs=avc1'
+            : 'video/webm';
 
       if (!MediaRecorder.isTypeSupported(mimeType)) {
         throw new Error('No supported video format found on this device.');
