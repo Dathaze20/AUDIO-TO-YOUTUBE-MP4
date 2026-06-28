@@ -186,6 +186,15 @@ const App: React.FC = () => {
         setTimeout(() => reject(new Error('Image took too long to load.')), 10000);
       });
 
+      // First-frame warmup: paint the cover image before creating the capture
+      // stream so the video track is immediately marked active on mobile Chrome.
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 1280, 720);
+      const ratio = Math.max(1280 / img.width, 720 / img.height);
+      const w = img.width * ratio;
+      const h = img.height * ratio;
+      ctx.drawImage(img, (1280 - w) / 2, (720 - h) / 2, w, h);
+
       // Audio routing: reuse persistent AudioContext to prevent mobile crashes
       if (!audioContextRef.current) {
         const AC = window.AudioContext || (window as any).webkitAudioContext;
