@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#4f46e5"/>
+  <g transform="translate(256,256)">
+    <!-- Play triangle -->
+    <polygon points="-60,-80 80,0 -60,80" fill="white" opacity="0.95"/>
+    <!-- Music note accent -->
+    <circle cx="90" cy="60" r="22" fill="white" opacity="0.6"/>
+    <rect x="108" y="-40" width="6" height="100" rx="3" fill="white" opacity="0.6"/>
+  </g>
+</svg>

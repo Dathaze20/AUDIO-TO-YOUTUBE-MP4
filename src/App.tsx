@@ -1,197 +1,283 @@
-
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Video, 
-  Music, 
-  Image as ImageIcon, 
-  CheckCircle2, 
-  ChevronRight, 
-  Download, 
-  Check, 
-  RefreshCw,
-  Zap
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import {
+  Video,
+  Music,
+  Image as ImageIcon,
+  CheckCircle2,
+  Download,
+  RotateCcw,
+  AlertCircle,
+  X,
+  Share2
 } from 'lucide-react';
 import FileUploader from './components/FileUploader';
-import { FileState, RenderStatus, RenderingProgress } from './types';
+import { FileState, ConversionStatus, ConversionProgress } from './types';
+
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ACCEPTED_AUDIO_TYPES = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/mp4', 'audio/x-m4a'];
+
+function formatTime(seconds: number): string {
+  if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function validateFile(file: File, acceptedTypes: string[], label: string): string | null {
+  if (acceptedTypes.length > 0 && !acceptedTypes.some(t => file.type.startsWith(t.replace('/*', '')))) {
+    return `${label}: "${file.type || file.name}" is not a supported format.`;
+  }
+  if (file.size > 500 * 1024 * 1024) {
+    return `${label} is too large (${(file.size / 1024 / 1024).toFixed(0)} MB). Max 500 MB.`;
+  }
+  return null;
+}
+
+function vibrate(pattern: number | number[]) {
+  try { navigator.vibrate?.(pattern); } catch {}
+}
 
 const App: React.FC = () => {
   const [image, setImage] = useState<FileState>({ file: null, previewUrl: null, name: '' });
   const [audio, setAudio] = useState<FileState>({ file: null, previewUrl: null, name: '' });
-  const [agreed, setAgreed] = useState(false);
-  const [renderStatus, setRenderStatus] = useState<RenderingProgress>({
-    status: RenderStatus.IDLE,
-    progress: 0,
-    message: ''
+  const [audioDuration, setAudioDuration] = useState('');
+  const [conversionState, setConversionState] = useState<ConversionProgress>({
+    status: ConversionStatus.IDLE, progress: 0, message: ''
   });
   const [resultVideoUrl, setResultVideoUrl] = useState<string | null>(null);
-  const [totalTimeFormatted, setTotalTimeFormatted] = useState('0:00');
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
+  const [outputExt, setOutputExt] = useState('mp4');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const renderLoopRef = useRef<number | null>(null);
-  const wakeLockRef = useRef<any>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  
-  // Persistent refs to prevent "already connected" errors and context garbage collection
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
-  const formatTime = (seconds: number) => {
-    if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  // Track blob URLs in refs so cleanup doesn't depend on stale state
+  const imageUrlRef = useRef<string | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
-  const stopRecording = () => {
-    if (recorderRef.current && recorderRef.current.state === 'recording') {
-      recorderRef.current.stop();
+  // Reacquire wake lock when tab regains focus
+  useEffect(() => {
+    const onVisibility = async () => {
+      if (document.visibilityState === 'visible' && conversionState.status === ConversionStatus.CONVERTING) {
+        if ('wakeLock' in navigator) {
+          try { wakeLockRef.current = await navigator.wakeLock.request('screen'); } catch {}
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [conversionState.status]);
+
+  const handleImageSelect = useCallback((file: File) => {
+    const error = validateFile(file, ACCEPTED_IMAGE_TYPES, 'Image');
+    if (error) {
+      setValidationError(error);
+      vibrate([50, 30, 50]);
+      return;
     }
-    if (renderLoopRef.current) {
-      cancelAnimationFrame(renderLoopRef.current);
+    setValidationError(null);
+    // Clean up old URL using ref (avoids stale closure)
+    if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+    const url = URL.createObjectURL(file);
+    imageUrlRef.current = url;
+    setImage({ file, previewUrl: url, name: file.name });
+    vibrate(15);
+  }, []);
+
+  const handleAudioSelect = useCallback((file: File) => {
+    const error = validateFile(file, ACCEPTED_AUDIO_TYPES, 'Audio');
+    if (error) {
+      setValidationError(error);
+      vibrate([50, 30, 50]);
+      return;
     }
-    if (wakeLockRef.current) {
-      try { wakeLockRef.current.release(); } catch(e) {}
-    }
-  };
+    setValidationError(null);
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    const url = URL.createObjectURL(file);
+    audioUrlRef.current = url;
+    setAudio({ file, previewUrl: url, name: file.name });
+    vibrate(15);
+    const tmp = new Audio(url);
+    tmp.addEventListener('loadedmetadata', () => {
+      if (isFinite(tmp.duration)) setAudioDuration(formatTime(tmp.duration));
+    });
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+    if (renderLoopRef.current) { cancelAnimationFrame(renderLoopRef.current); renderLoopRef.current = null; }
+    if (wakeLockRef.current) { try { wakeLockRef.current.release(); } catch {} wakeLockRef.current = null; }
+  }, []);
+
+  const cancelConversion = useCallback(() => {
+    stopRecording();
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+    setConversionState({ status: ConversionStatus.IDLE, progress: 0, message: '' });
+    vibrate(30);
+  }, [stopRecording]);
+
+  const resetAll = useCallback(() => {
+    stopRecording();
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+    if (resultVideoUrl) URL.revokeObjectURL(resultVideoUrl);
+    if (imageUrlRef.current) { URL.revokeObjectURL(imageUrlRef.current); imageUrlRef.current = null; }
+    if (audioUrlRef.current) { URL.revokeObjectURL(audioUrlRef.current); audioUrlRef.current = null; }
+    setImage({ file: null, previewUrl: null, name: '' });
+    setAudio({ file: null, previewUrl: null, name: '' });
+    setAudioDuration('');
+    setConversionState({ status: ConversionStatus.IDLE, progress: 0, message: '' });
+    setResultVideoUrl(null);
+    setResultBlob(null);
+    setOutputExt('mp4');
+    setValidationError(null);
+    vibrate(15);
+  }, [resultVideoUrl, stopRecording]);
+
+  const handleShare = useCallback(async () => {
+    if (!resultBlob) return;
+    const file = new File([resultBlob], `youtube-video.${outputExt}`, { type: resultBlob.type });
+    try {
+      await navigator.share({ files: [file], title: 'YouTube Video' });
+      vibrate(15);
+    } catch {}
+  }, [resultBlob, outputExt]);
 
   const startConversion = async () => {
-    if (!image.file || !audio.file || !audioRef.current || !agreed) return;
+    if (!image.file || !audio.file || !audioRef.current) return;
+    vibrate(30);
 
     try {
-      setRenderStatus({
-        status: RenderStatus.RENDERING,
-        progress: 0,
-        message: 'Initializing Core...'
-      });
+      setConversionState({ status: ConversionStatus.CONVERTING, progress: 0, message: 'Preparing...' });
 
-      // 1. Keep screen alive
       if ('wakeLock' in navigator) {
-        try { wakeLockRef.current = await (navigator as any).wakeLock.request('screen'); } catch (e) {}
+        try { wakeLockRef.current = await navigator.wakeLock.request('screen'); } catch {}
       }
 
-      // 2. Wait for Audio Metadata (CRITICAL for mobile)
-      if (audioRef.current.readyState < 1 && audioRef.current.duration === 0) {
-        await new Promise((resolve) => {
-          const onLoaded = () => {
-            audioRef.current?.removeEventListener('loadedmetadata', onLoaded);
-            audioRef.current?.removeEventListener('canplay', onLoaded);
-            resolve(null);
+      // Wait for audio metadata on mobile
+      if (audioRef.current.readyState < 1) {
+        await new Promise<void>((resolve) => {
+          const onReady = () => {
+            audioRef.current?.removeEventListener('loadedmetadata', onReady);
+            audioRef.current?.removeEventListener('canplay', onReady);
+            resolve();
           };
-          audioRef.current?.addEventListener('loadedmetadata', onLoaded);
-          audioRef.current?.addEventListener('canplay', onLoaded);
-          
-          // Fallback timeout
-          setTimeout(onLoaded, 5000);
+          audioRef.current?.addEventListener('loadedmetadata', onReady);
+          audioRef.current?.addEventListener('canplay', onReady);
+          setTimeout(onReady, 5000);
         });
       }
 
-      // 2.1. Wait for DOM to update with the new status (Canvas to mount)
+      // Wait for canvas to mount
       let canvas = canvasRef.current;
       let attempts = 0;
-      const maxAttempts = 150; // Increased to ~3 seconds
-      
-      while (!canvas && attempts < maxAttempts) {
+      while (!canvas && attempts < 150) {
         await new Promise(r => setTimeout(r, 20));
         canvas = canvasRef.current;
         attempts++;
       }
-
-      if (!canvas) {
-        console.error("Canvas hardware not found after", attempts, "attempts");
-        throw new Error('Console Hardware Not Found');
-      }
+      if (!canvas) throw new Error('Could not initialize video canvas. Please try again.');
 
       const ctx = canvas.getContext('2d', { alpha: false })!;
       canvas.width = 1280;
       canvas.height = 720;
 
+      // Load cover image with timeout
       const img = new Image();
       img.src = image.previewUrl!;
-      await new Promise((r) => img.onload = r);
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load cover image.'));
+        setTimeout(() => reject(new Error('Image took too long to load.')), 10000);
+      });
 
-      // 3. Audio Routing Fix: Re-use or initialize persistent context
+      // Audio context setup (reuse to prevent mobile crashes)
       if (!audioContextRef.current) {
-        const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
-        audioContextRef.current = new AudioContextClass();
+        const AC = window.AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AC();
       }
-      
       const audioCtx = audioContextRef.current;
       const dest = audioCtx.createMediaStreamDestination();
 
-      // Ensure we don't connect the same element twice (common mobile crash)
       if (!audioSourceRef.current) {
         audioSourceRef.current = audioCtx.createMediaElementSource(audioRef.current);
       }
-      
       audioSourceRef.current.disconnect();
-      audioSourceRef.current.connect(audioCtx.destination); // For preview
-      audioSourceRef.current.connect(dest);                // For recorder
+      audioSourceRef.current.connect(audioCtx.destination);
+      audioSourceRef.current.connect(dest);
 
-      const videoStream = canvas.captureStream(30); 
+      const videoStream = canvas.captureStream(30);
       const combinedStream = new MediaStream([
         ...videoStream.getVideoTracks(),
         ...dest.stream.getAudioTracks()
       ]);
 
-      // 4. Stable Codecs: prioritize high-compatibility mobile profiles
       if (typeof MediaRecorder === 'undefined') {
-        throw new Error('Recording not supported on this browser');
+        throw new Error('Your browser does not support video recording. Please use Chrome or Edge.');
       }
 
-      const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') 
-        ? 'video/mp4;codecs=avc1' 
-        : (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') 
-          ? 'video/webm;codecs=vp8,opus' 
-          : 'video/webm');
+      const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
+        ? 'video/mp4;codecs=avc1'
+        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+          ? 'video/webm;codecs=vp8,opus'
+          : 'video/webm';
 
       if (!MediaRecorder.isTypeSupported(mimeType)) {
-        throw new Error('Video format not supported on this device');
+        throw new Error('No supported video format found on this device.');
       }
 
-      // 5. Bitrate Safety: Lowered slightly to 5Mbps for hardware encoder stability
-      const recorder = new MediaRecorder(combinedStream, { 
-        mimeType, 
-        videoBitsPerSecond: 5000000,
-        audioBitsPerSecond: 128000   
+      const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+      setOutputExt(ext);
+
+      const recorder = new MediaRecorder(combinedStream, {
+        mimeType,
+        videoBitsPerSecond: 5_000_000,
+        audioBitsPerSecond: 128_000
       });
-      
+
       recorderRef.current = recorder;
       const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+      recorder.onerror = () => {
+        vibrate([100, 50, 100]);
+        setConversionState({
+          status: ConversionStatus.ERROR, progress: 0,
+          message: 'Recording failed unexpectedly. Try a shorter file or restart.'
+        });
       };
 
       recorder.onstop = () => {
         const finalBlob = new Blob(chunks, { type: mimeType });
-        const url = URL.createObjectURL(finalBlob);
-        setResultVideoUrl(url);
-        setRenderStatus({ status: RenderStatus.COMPLETED, progress: 100, message: 'Mastering Done' });
+        setResultBlob(finalBlob);
+        setResultVideoUrl(URL.createObjectURL(finalBlob));
+        setConversionState({ status: ConversionStatus.COMPLETED, progress: 100, message: 'Ready to download' });
+        vibrate([40, 60, 40, 60, 80]);
       };
 
       let lastUpdate = 0;
       const draw = () => {
         if (!ctx || !audioRef.current) return;
-        
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, 1280, 720);
-        
         const ratio = Math.max(1280 / img.width, 720 / img.height);
         const w = img.width * ratio;
         const h = img.height * ratio;
-        const x = (1280 - w) / 2;
-        const y = (720 - h) / 2;
-        ctx.drawImage(img, x, y, w, h);
+        ctx.drawImage(img, (1280 - w) / 2, (720 - h) / 2, w, h);
 
         const now = Date.now();
         const time = audioRef.current.currentTime;
         const duration = audioRef.current.duration;
 
-        if (now - lastUpdate > 100) { // Throttle UI updates to 10fps
+        if (now - lastUpdate > 250) {
           const p = Math.floor((time / duration) * 100);
-
-          setRenderStatus(prev => ({ 
+          setConversionState(prev => ({
             ...prev,
             progress: isNaN(p) ? 0 : Math.min(99, p),
             message: `${formatTime(time)} / ${formatTime(duration)}`
@@ -208,233 +294,234 @@ const App: React.FC = () => {
 
       audioRef.current.currentTime = 0;
       await audioCtx.resume();
-      recorder.start();
+      recorder.start(1000);
       await audioRef.current.play();
-      setTotalTimeFormatted(formatTime(audioRef.current.duration));
       draw();
 
     } catch (err) {
-      console.error("Mastering Failure:", err);
-      // Display the actual error message to help diagnose the specific issue
-      const errorMessage = err instanceof Error ? err.message.toUpperCase() : 'CORE RESET REQUIRED';
-      setRenderStatus({ 
-        status: RenderStatus.ERROR, 
-        progress: 0, 
-        message: errorMessage 
+      console.error('Conversion failed:', err);
+      vibrate([100, 50, 100]);
+      setConversionState({
+        status: ConversionStatus.ERROR, progress: 0,
+        message: err instanceof Error ? err.message : 'Something went wrong. Please try again.'
       });
     }
   };
 
+  const canConvert = !!image.file && !!audio.file;
+  const isIdle = conversionState.status === ConversionStatus.IDLE;
+  const isConverting = conversionState.status === ConversionStatus.CONVERTING;
+  const isError = conversionState.status === ConversionStatus.ERROR;
+  const isComplete = conversionState.status === ConversionStatus.COMPLETED;
+  const canShare = typeof navigator.share === 'function' && !!resultBlob;
+
   return (
-    <div className="h-[100dvh] flex flex-col text-slate-100 font-sans selection:bg-blue-900 overflow-hidden antialiased bg-slate-950">
-      <header className="bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 p-3 flex items-center justify-between z-50 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center neon-blue shadow-blue-500/20">
-            <Video className="w-5 h-5 text-white" strokeWidth={3} />
-          </div>
-          <h1 className="text-base font-black tracking-tighter text-white italic">VocalCanvas</h1>
+    <div className="h-[100dvh] flex flex-col bg-slate-900 text-slate-100 font-sans overflow-hidden">
+      <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center gap-2.5 shrink-0">
+        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <Video className="w-4 h-4 text-white" strokeWidth={2.5} />
         </div>
-        <div className="px-3 py-1 bg-blue-900/30 border border-blue-500/40 rounded-full flex items-center gap-2">
-           <span className="text-[7px] font-black text-blue-400 uppercase tracking-[0.2em] neon-text-blue">STABLE V2.5</span>
-           <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-        </div>
+        <h1 className="text-sm font-bold text-white">Audio to YouTube MP4</h1>
       </header>
 
-      <main className="flex-1 max-w-lg mx-auto w-full px-4 flex flex-col justify-center min-h-0 py-2 gap-3 overflow-hidden">
-        <AnimatePresence mode="wait">
-          {renderStatus.status === RenderStatus.ERROR && (
-            <motion.div 
-              key="error"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="p-8 text-center bg-red-900/20 border border-red-500/50 rounded-[32px] w-full"
-            >
-               <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-500/40 animate-pulse">
-                  <Zap className="w-8 h-8 text-white" strokeWidth={3} />
-               </div>
-               <h3 className="text-xl font-black text-white italic tracking-tight mb-2">SYSTEM CRITICAL</h3>
-               <p className="text-red-400 text-[10px] font-black uppercase tracking-widest mb-6 leading-relaxed">{renderStatus.message}</p>
-               <button onClick={() => window.location.reload()} className="w-full py-4 bg-white text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4" />
-                  EMERGENCY BOOT
-               </button>
-            </motion.div>
+      <main className="flex-1 min-h-0 overflow-y-auto">
+        <div className="max-w-xl mx-auto px-4 py-4 sm:py-6 flex flex-col gap-3 sm:gap-4 min-h-full">
+
+          {/* ERROR */}
+          {isError && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 py-8">
+              <AlertCircle className="w-12 h-12 text-red-400" />
+              <h3 className="text-lg font-bold text-white text-center">Conversion Failed</h3>
+              <p className="text-sm text-red-300/80 text-center max-w-xs">{conversionState.message}</p>
+              <button
+                onClick={resetAll}
+                className="w-full max-w-xs py-3.5 bg-slate-800 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Try Again
+              </button>
+            </div>
           )}
 
-          {renderStatus.status === RenderStatus.IDLE && !resultVideoUrl && (
-            <motion.div 
-              key="idle"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="flex flex-col gap-3"
-            >
-            <div className="text-center space-y-0.5">
-              <h2 className="text-xl font-black text-white leading-none tracking-tighter">
-                CONVERT MP3 TO <span className="text-cyan-400 neon-text-blue">HD VIDEO</span>
-              </h2>
-              <p className="text-slate-500 text-[8px] font-bold uppercase tracking-[0.25em] italic">High-Fidelity One-Page Console</p>
-            </div>
-
-            <div className="bg-slate-900/50 backdrop-blur-md p-4 rounded-[32px] border border-slate-800 flex flex-col gap-3 shadow-2xl">
-              <div className="grid gap-2">
-                <FileUploader 
-                  label="1. Background Art" 
-                  accept="image/*" 
-                  selectedFileName={image.name}
-                  previewUrl={image.previewUrl}
-                  onFileSelect={(f) => {
-                    if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
-                    setImage({ file: f, previewUrl: URL.createObjectURL(f), name: f.name });
-                  }}
-                  icon={<ImageIcon className="w-6 h-6" />} 
-                />
-
-                <FileUploader 
-                  label="2. Master Audio (MP3)" 
-                  accept="audio/*" 
-                  selectedFileName={audio.name}
-                  onFileSelect={(f) => {
-                    if (audio.previewUrl) URL.revokeObjectURL(audio.previewUrl);
-                    setAudio({ file: f, previewUrl: URL.createObjectURL(f), name: f.name });
-                  }}
-                  icon={<Music className="w-6 h-6" />} 
-                />
+          {/* IDLE */}
+          {isIdle && !resultVideoUrl && (
+            <>
+              <div className="text-center pt-1 sm:pt-4">
+                <h2 className="text-lg sm:text-xl font-bold text-white">
+                  Convert MP3 to <span className="text-indigo-400">MP4 Video</span>
+                </h2>
+                <p className="text-sm text-slate-400 mt-1">
+                  Pick a cover image and audio file, then tap convert.
+                </p>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex flex-col gap-3">
-                <div 
-                  className={`flex items-center gap-3 p-3 rounded-[20px] border transition-all duration-300 cursor-pointer ${agreed ? 'bg-blue-600/20 border-blue-500/50 neon-blue' : 'bg-slate-950/40 border-slate-800'}`}
-                  onClick={() => setAgreed(!agreed)}
-                >
-                  <div className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 ${agreed ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-slate-800 border border-slate-700'}`}>
-                    {agreed && <Check className="w-3 h-3 text-white" strokeWidth={4} />}
+              {validationError && (
+                <div className="bg-red-950/30 border border-red-500/30 rounded-xl px-4 py-3 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-300">{validationError}</p>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2.5 sm:gap-3">
+                <FileUploader
+                  label="1. Cover Image"
+                  accept="image/jpeg,image/png,image/webp"
+                  hint="JPG, PNG, or WebP"
+                  selectedFileName={image.name}
+                  previewUrl={image.previewUrl}
+                  onFileSelect={handleImageSelect}
+                  icon={<ImageIcon className="w-6 h-6" />}
+                />
+
+                <FileUploader
+                  label="2. Audio File"
+                  accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac,audio/mp4,audio/x-m4a"
+                  hint="MP3, WAV, OGG, AAC, or M4A"
+                  selectedFileName={audio.name}
+                  onFileSelect={handleAudioSelect}
+                  icon={<Music className="w-6 h-6" />}
+                />
+
+                {audioDuration && (
+                  <p className="text-xs text-slate-500 text-center">
+                    Duration: {audioDuration} &middot; Conversion takes about the same time
+                  </p>
+                )}
+              </div>
+
+              {image.previewUrl && (
+                <div className="rounded-xl overflow-hidden border border-slate-700/50 aspect-video bg-black">
+                  <img src={image.previewUrl} alt="Cover preview" className="w-full h-full object-contain" />
+                </div>
+              )}
+
+              <button
+                disabled={!canConvert}
+                onClick={startConversion}
+                className="w-full py-3.5 sm:py-4 bg-indigo-600 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl font-bold text-base transition-all active:scale-[0.97] flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-indigo-500"
+              >
+                <Video className="w-5 h-5" />
+                Convert to MP4
+              </button>
+
+              {!canConvert && (
+                <p className="text-xs text-slate-600 text-center">
+                  {!image.file && !audio.file ? 'Select a cover image and audio file to start' :
+                   !image.file ? 'Select a cover image to continue' : 'Select an audio file to continue'}
+                </p>
+              )}
+
+              <p className="text-xs text-slate-600 text-center mt-auto pb-1 pt-2">
+                All files stay on your device &middot; Not affiliated with YouTube
+              </p>
+            </>
+          )}
+
+          {/* CONVERTING */}
+          {isConverting && (
+            <div className="flex-1 flex flex-col gap-4 justify-center py-4">
+              <div className="aspect-video rounded-xl overflow-hidden bg-black border border-slate-700 relative">
+                <canvas ref={canvasRef} className="w-full h-full object-contain" />
+                <div className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-red-600 rounded flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                  <span className="text-[10px] text-white font-bold uppercase tracking-wide">REC</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-baseline">
+                  <div>
+                    <h3 className="text-base font-bold text-white">Converting...</h3>
+                    <p className="text-sm text-slate-400">{conversionState.message}</p>
                   </div>
-                  <span className={`text-[9px] font-black uppercase tracking-[0.1em] ${agreed ? 'text-blue-400' : 'text-slate-600'}`}>
-                    Signal Chain Locked & Ready
-                  </span>
+                  <span className="text-2xl sm:text-3xl font-bold text-indigo-400 tabular-nums">{conversionState.progress}%</span>
                 </div>
 
-                <button 
-                  disabled={!image.file || !audio.file || !agreed}
-                  onClick={startConversion}
-                  className="w-full py-4 bg-blue-600 disabled:bg-slate-800 disabled:text-slate-700 text-white rounded-[20px] font-black text-base shadow-[0_8px_16px_-4px_rgba(37,99,235,0.4)] transition-all active:scale-[0.96] flex items-center justify-center gap-3 italic"
+                <div
+                  className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={conversionState.progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Conversion progress"
                 >
-                  ENGAGE MASTERING
+                  <div
+                    className="h-full bg-indigo-500 rounded-full transition-[width] duration-300"
+                    style={{ width: `${conversionState.progress}%` }}
+                  />
+                </div>
+
+                <p className="text-xs text-slate-500 text-center">
+                  Keep this tab open &middot; Screen will stay on
+                </p>
+
+                <button
+                  onClick={cancelConversion}
+                  className="w-full py-3 text-slate-400 font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform rounded-xl border border-slate-700/50 focus-visible:outline-2 focus-visible:outline-indigo-500"
+                >
+                  <X className="w-4 h-4" />
+                  Cancel
                 </button>
               </div>
             </div>
-          </motion.div>
-        )}
+          )}
 
-        {renderStatus.status === RenderStatus.RENDERING && (
-          <motion.div 
-            key="rendering"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            className="flex flex-col gap-4 max-h-[80vh] justify-center"
-          >
-            <div className="aspect-video rounded-[28px] overflow-hidden bg-black shadow-2xl relative border border-slate-800 shrink-0">
-              <canvas ref={canvasRef} className="w-full h-full object-contain opacity-50" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/30 flex flex-col justify-between p-4">
-                 <div className="px-2.5 py-1 bg-red-600 rounded-md flex items-center gap-1.5 animate-pulse w-fit">
-                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                    <span className="text-[7px] text-white font-black uppercase tracking-widest">REC</span>
-                 </div>
-                 <div className="space-y-1">
-                    <div className="w-full h-[1px] bg-white/5 overflow-hidden">
-                       <div className="h-full bg-cyan-400 w-full animate-[slide_2s_infinite]" />
-                    </div>
-                    <p className="text-[8px] text-white/30 font-black tracking-[0.3em] uppercase">MASTERING ENGINE ACTIVE</p>
-                 </div>
+          {/* COMPLETE */}
+          {isComplete && resultVideoUrl && (
+            <div className="flex-1 flex flex-col gap-3 sm:gap-4 justify-center py-4">
+              <div className="text-center">
+                <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
+                <h2 className="text-lg font-bold text-white">Conversion Complete</h2>
+                <p className="text-sm text-slate-400 mt-1">{conversionState.message}</p>
               </div>
-            </div>
-            
-            <div className="space-y-4 px-2">
-              <div className="flex justify-between items-end">
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black text-white italic uppercase neon-text-blue tracking-tight">Processing</h3>
-                  <p className="text-[9px] text-cyan-400 font-black tracking-[0.1em] bg-cyan-950/40 px-3 py-1 rounded-full border border-cyan-800/30">
-                    {renderStatus.message}
-                  </p>
-                </div>
-                <span className="text-4xl font-black text-cyan-400 italic tabular-nums neon-text-blue leading-none">{renderStatus.progress}%</span>
-              </div>
-              
-              <div className="h-5 w-full bg-slate-950 rounded-full p-1 border border-slate-800 shadow-inner">
-                <div 
-                  className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(34,211,238,0.4)]" 
-                  style={{ width: `${renderStatus.progress}%` }}
-                />
-              </div>
-            </div>
-          </motion.div>
-        )}
 
-        {resultVideoUrl && (
-          <motion.div 
-            key="result"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="flex flex-col gap-4 h-full max-h-[85vh] justify-center"
-          >
-            <div className="text-center space-y-1 shrink-0">
-              <div className="w-14 h-14 bg-cyan-400 rounded-xl flex items-center justify-center mx-auto mb-1 shadow-[0_0_20px_rgba(34,211,238,0.4)]">
-                <CheckCircle2 className="w-8 h-8 text-slate-950" strokeWidth={3} />
+              <div className="rounded-xl overflow-hidden border border-slate-700 bg-black aspect-video">
+                <video src={resultVideoUrl} controls className="w-full h-full" playsInline />
               </div>
-              <h2 className="text-xl font-black text-white italic tracking-tight neon-text-blue leading-none">MASTER FINALIZED</h2>
-              <p className="text-slate-500 text-[8px] font-black uppercase tracking-[0.2em]">{totalTimeFormatted} Render Verified</p>
-            </div>
-            
-            <div className="rounded-[28px] overflow-hidden shadow-2xl border border-slate-800 bg-black aspect-video shrink-0">
-              <video src={resultVideoUrl} controls className="w-full h-full" />
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              <button 
+
+              <button
                 onClick={() => {
                   const a = document.createElement('a');
                   a.href = resultVideoUrl;
-                  a.download = `VocalCanvas_Master_${Date.now()}.mp4`;
+                  a.download = `youtube-video-${Date.now()}.${outputExt}`;
                   a.click();
+                  vibrate(15);
                 }}
-                className="w-full py-5 bg-cyan-500 text-slate-950 rounded-[20px] font-black text-lg shadow-cyan-400/30 shadow-lg flex items-center justify-center gap-3 italic tracking-tight transition-transform active:scale-[0.96]"
+                className="w-full py-3.5 sm:py-4 bg-emerald-600 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-emerald-500"
               >
-                <Download className="w-6 h-6" strokeWidth={3} />
-                SAVE HD MASTER
+                <Download className="w-5 h-5" />
+                Download {outputExt.toUpperCase()}
               </button>
-              <button onClick={() => window.location.reload()} className="text-slate-600 font-black text-[9px] uppercase tracking-[0.3em] py-2 flex items-center justify-center gap-2">
-                <RefreshCw className="w-3 h-3" />
-                RESTART CONSOLE
+
+              {canShare && (
+                <button
+                  onClick={handleShare}
+                  className="w-full py-3 bg-slate-800 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share Video
+                </button>
+              )}
+
+              <button
+                onClick={resetAll}
+                className="w-full py-3 text-slate-500 font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Start Over
               </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </main>
+          )}
+        </div>
+      </main>
 
-      <footer className="py-2.5 text-center border-t border-slate-900 bg-slate-950/60 shrink-0">
-        <p className="text-slate-600 text-[7px] font-black uppercase tracking-[0.3em]">SECURE LOCAL MASTERING CORE • v2.5 FINAL</p>
-      </footer>
-
-      {/* No crossOrigin used for local blobs to avoid security blocks on phone browsers */}
-      <audio 
-        ref={audioRef} 
-        src={audio.previewUrl || ''} 
-        className="hidden" 
-        playsInline 
+      <audio
+        ref={audioRef}
+        src={audio.previewUrl || undefined}
+        className="hidden"
+        playsInline
         preload="auto"
       />
-      
-      <style>{`
-        @keyframes slide {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(200%); }
-        }
-      `}</style>
     </div>
   );
 };

@@ -1,20 +1,67 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Audio to YouTube MP4
 
-# Run and deploy your AI Studio app
+Turn an MP3 and cover image into a YouTube-ready MP4. No video editor required.
 
-This contains everything you need to run your app locally.
+## What It Does
 
-View your app in AI Studio: https://ai.studio/apps/0b41ad00-9f29-47a3-bf1e-320c111ae966
+Select an audio file and a cover image, and this tool creates a video file with your image displayed for the full duration of the audio. The output is a 1280x720 (720p) MP4 or WebM video ready to upload to YouTube.
+
+## Supported Formats
+
+**Input audio:** MP3, WAV, OGG, AAC, M4A
+
+**Input image:** JPG, PNG, WebP
+
+**Output video:** MP4 (H.264) on supported browsers, WebM (VP8/Opus) as fallback. Resolution is 1280x720 at 30fps.
+
+## How It Works
+
+1. You select a cover image and an audio file on your device.
+2. The app draws your image onto an HTML5 Canvas element (1280x720).
+3. The audio plays through a Web Audio API pipeline.
+4. The browser's MediaRecorder API captures the canvas video stream and audio stream together.
+5. When the audio finishes, the recording stops and you can download the result.
+
+All processing happens entirely in your browser. No files are uploaded to any server.
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+**Prerequisites:** Node.js 18+
 
+```bash
+npm install
+npm run dev
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Open `http://localhost:3000` in your browser.
+
+## Build for Production
+
+```bash
+npm run build
+```
+
+The built files will be in the `dist/` folder, ready for static hosting.
+
+## Mobile Compatibility
+
+This app is designed to work on Android phones (tested on Samsung Galaxy A16 with Chrome). Key mobile considerations:
+
+- The app uses Wake Lock API to keep the screen on during conversion.
+- Conversion runs in real-time: a 3-minute song takes about 3 minutes to convert.
+- Processing time depends on your device and the length of the audio file.
+- Keep the browser tab open and in the foreground during conversion.
+
+**Browser support:** Chrome 94+, Edge 94+, and other Chromium-based browsers. Safari and Firefox have limited MediaRecorder support and may not produce MP4 output.
+
+## Privacy
+
+All conversion happens locally in your browser. No files are uploaded to any server. No analytics or tracking is included. No account is required.
+
+## Disclaimer
+
+This tool is not affiliated with, endorsed by, or connected to YouTube or Google in any way. "YouTube" is a trademark of Google LLC. This tool simply produces standard video files that are compatible with YouTube's upload requirements.
+
+## License
+
+MIT
