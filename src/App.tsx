@@ -316,12 +316,15 @@ const App: React.FC = () => {
   const canShare = typeof navigator.share === 'function' && !!resultBlob;
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-slate-900 text-slate-100 font-sans overflow-hidden">
-      <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center gap-2.5 shrink-0">
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-          <Video className="w-4 h-4 text-white" strokeWidth={2.5} />
+    <div className="h-[100dvh] flex flex-col bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-100 font-sans overflow-hidden">
+      <header className="shrink-0">
+        <div className="px-4 py-3.5 flex items-center gap-3">
+          <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Video className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+          </div>
+          <h1 className="text-sm font-bold text-white tracking-tight">Audio to YouTube MP4</h1>
         </div>
-        <h1 className="text-sm font-bold text-white">Audio to YouTube MP4</h1>
+        <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
       </header>
 
       <main className="flex-1 min-h-0 overflow-y-auto">
@@ -346,11 +349,11 @@ const App: React.FC = () => {
           {/* IDLE */}
           {isIdle && !resultVideoUrl && (
             <>
-              <div className="text-center pt-1 sm:pt-4">
-                <h2 className="text-lg sm:text-xl font-bold text-white">
-                  Convert MP3 to <span className="text-indigo-400">MP4 Video</span>
+              <div className="text-center pt-2 sm:pt-5">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+                  Convert MP3 to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">MP4 Video</span>
                 </h2>
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="text-sm text-slate-400 mt-1.5">
                   Pick a cover image and audio file, then tap convert.
                 </p>
               </div>
@@ -398,7 +401,11 @@ const App: React.FC = () => {
               <button
                 disabled={!canConvert}
                 onClick={startConversion}
-                className="w-full py-3.5 sm:py-4 bg-indigo-600 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl font-bold text-base transition-all active:scale-[0.97] flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-indigo-500"
+                className={`w-full py-3.5 sm:py-4 rounded-xl font-bold text-base transition-all active:scale-[0.97] flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-indigo-500 ${
+                  canConvert
+                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25'
+                    : 'bg-slate-800/60 text-slate-600 border border-slate-700/30'
+                }`}
               >
                 <Video className="w-5 h-5" />
                 Convert to MP4
@@ -411,7 +418,7 @@ const App: React.FC = () => {
                 </p>
               )}
 
-              <p className="text-xs text-slate-600 text-center mt-auto pb-1 pt-2">
+              <p className="text-xs text-slate-600 text-center mt-auto pb-2 pt-4">
                 All files stay on your device &middot; Not affiliated with YouTube
               </p>
             </>
@@ -446,7 +453,7 @@ const App: React.FC = () => {
                   aria-label="Conversion progress"
                 >
                   <div
-                    className="h-full bg-indigo-500 rounded-full transition-[width] duration-300"
+                    className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-[width] duration-300"
                     style={{ width: `${conversionState.progress}%` }}
                   />
                 </div>
@@ -487,7 +494,7 @@ const App: React.FC = () => {
                   a.click();
                   vibrate(15);
                 }}
-                className="w-full py-3.5 sm:py-4 bg-emerald-600 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-emerald-500"
+                className="w-full py-3.5 sm:py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-lg shadow-emerald-500/25 focus-visible:outline-2 focus-visible:outline-emerald-500"
               >
                 <Download className="w-5 h-5" />
                 Download {outputExt.toUpperCase()}
