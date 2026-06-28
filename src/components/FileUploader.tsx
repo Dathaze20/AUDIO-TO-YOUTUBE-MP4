@@ -27,10 +27,12 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       type="button"
       onClick={() => inputRef.current?.click()}
       className={`
-        w-full border-2 border-dashed rounded-2xl py-6 px-5 flex flex-col items-center justify-center gap-2 transition-all duration-200 active:scale-[0.97] min-h-[130px]
+        w-full border-2 border-dashed rounded-2xl p-4 flex items-center gap-4
+        transition-all duration-200 active:scale-[0.98]
+        focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500
         ${selectedFileName
-          ? 'border-emerald-500/60 bg-emerald-950/15'
-          : 'border-slate-600/60 bg-slate-800/30'}
+          ? 'border-emerald-500/50 bg-emerald-950/10'
+          : 'border-slate-600/50 bg-slate-800/20'}
       `}
       aria-label={selectedFileName ? `${label}: ${selectedFileName}. Tap to change.` : `${label}. Tap to select file.`}
     >
@@ -47,30 +49,25 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       />
 
       <div className={`
-        w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden
-        ${selectedFileName ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 text-slate-400'}
+        w-12 h-12 rounded-xl flex items-center justify-center shrink-0 overflow-hidden
+        ${selectedFileName ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/40 text-slate-400'}
       `}>
         {previewUrl ? (
-          <img src={previewUrl} alt="Selected cover preview" className="w-full h-full object-cover" />
-        ) : (
-          icon
-        )}
+          <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+        ) : icon}
       </div>
 
-      {selectedFileName ? (
-        <>
-          <span className="text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
-            {selectedFileName.length > 28 ? selectedFileName.substring(0, 25) + '...' : selectedFileName}
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
+      <div className="flex-1 text-left min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className={`text-sm font-semibold truncate ${selectedFileName ? 'text-emerald-400' : 'text-slate-200'}`}>
+            {selectedFileName || label}
           </span>
-          <span className="text-xs text-slate-500">Tap to change</span>
-        </>
-      ) : (
-        <>
-          <span className="text-base font-semibold text-slate-200">{label}</span>
-          <span className="text-xs text-slate-500">{hint}</span>
-        </>
-      )}
+          {selectedFileName && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+        </div>
+        <span className="text-xs text-slate-500 block mt-0.5">
+          {selectedFileName ? 'Tap to change' : hint}
+        </span>
+      </div>
     </button>
   );
 };
