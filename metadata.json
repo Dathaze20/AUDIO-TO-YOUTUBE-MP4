@@ -1,0 +1,8 @@
+{
+  "name": "Vocal Canvas Final version 2026",
+  "description": "Professional tool to convert audio into cinematic videos with AI-powered background generation.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": []
+}
