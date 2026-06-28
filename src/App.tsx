@@ -483,7 +483,7 @@ const App: React.FC = () => {
 
       <audio
         ref={audioRef}
-        src={audio.previewUrl || undefined}
+        src={audio.previewUrl || ''}
         className="hidden"
         playsInline
         preload="auto"
