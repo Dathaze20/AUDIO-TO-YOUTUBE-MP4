@@ -4,11 +4,10 @@ import {
   Music,
   Image as ImageIcon,
   CheckCircle2,
-  Download,
   RotateCcw,
   AlertCircle,
   X,
-  Share2
+  RefreshCw
 } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import { FileState, ConversionStatus, ConversionProgress } from './types';
@@ -139,15 +138,6 @@ const App: React.FC = () => {
     vibrate(15);
   }, [resultVideoUrl, stopRecording]);
 
-  const handleShare = useCallback(async () => {
-    if (!resultBlob) return;
-    const file = new File([resultBlob], `youtube-video.${outputExt}`, { type: resultBlob.type });
-    try {
-      await navigator.share({ files: [file], title: 'YouTube Video' });
-      vibrate(15);
-    } catch {}
-  }, [resultBlob, outputExt]);
-
   const startConversion = async () => {
     if (!image.file || !audio.file || !audioRef.current) return;
     vibrate(30);
@@ -256,9 +246,14 @@ const App: React.FC = () => {
       recorder.onstop = () => {
         const finalBlob = new Blob(chunks, { type: mimeType });
         setResultBlob(finalBlob);
-        setResultVideoUrl(URL.createObjectURL(finalBlob));
-        setConversionState({ status: ConversionStatus.COMPLETED, progress: 100, message: 'Ready to download' });
+        const url = URL.createObjectURL(finalBlob);
+        setResultVideoUrl(url);
+        setConversionState({ status: ConversionStatus.COMPLETED, progress: 100, message: 'Done' });
         vibrate([40, 60, 40, 60, 80]);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `youtube-video-${Date.now()}.${ext}`;
+        a.click();
       };
 
       let lastUpdate = 0;
@@ -285,12 +280,14 @@ const App: React.FC = () => {
           lastUpdate = now;
         }
 
-        if (audioRef.current.ended || (duration > 0 && time >= duration)) {
-          stopRecording();
-          return;
-        }
         renderLoopRef.current = requestAnimationFrame(draw);
       };
+
+      const onAudioEnded = () => {
+        audioRef.current?.removeEventListener('ended', onAudioEnded);
+        stopRecording();
+      };
+      audioRef.current.addEventListener('ended', onAudioEnded);
 
       audioRef.current.currentTime = 0;
       await audioCtx.resume();
@@ -313,7 +310,6 @@ const App: React.FC = () => {
   const isConverting = conversionState.status === ConversionStatus.CONVERTING;
   const isError = conversionState.status === ConversionStatus.ERROR;
   const isComplete = conversionState.status === ConversionStatus.COMPLETED;
-  const canShare = typeof navigator.share === 'function' && !!resultBlob;
 
   return (
     <div className="h-[100dvh] flex flex-col bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-100 font-sans overflow-hidden">
@@ -467,48 +463,21 @@ const App: React.FC = () => {
 
           {/* COMPLETE */}
           {isComplete && resultVideoUrl && (
-            <div className="flex-1 flex flex-col gap-3 sm:gap-4 justify-center py-4">
+            <div className="flex-1 flex flex-col items-center justify-center gap-5 py-4">
+              <CheckCircle2 className="w-16 h-16 text-emerald-400" />
               <div className="text-center">
-                <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
-                <h2 className="text-lg font-bold text-white">Conversion Complete</h2>
-                <p className="text-sm text-slate-400 mt-1">{conversionState.message}</p>
+                <h2 className="text-xl font-bold text-white">Video Saved</h2>
+                <p className="text-sm text-slate-400 mt-1">Check your Downloads folder</p>
               </div>
-
-              <div className="rounded-xl overflow-hidden border border-slate-700 bg-black aspect-video">
-                <video src={resultVideoUrl} controls className="w-full h-full" playsInline />
-              </div>
-
-              <button
-                onClick={() => {
-                  const a = document.createElement('a');
-                  a.href = resultVideoUrl;
-                  a.download = `youtube-video-${Date.now()}.${outputExt}`;
-                  a.click();
-                  vibrate(15);
-                }}
-                className="w-full py-3.5 sm:py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-lg shadow-emerald-500/25 focus-visible:outline-2 focus-visible:outline-emerald-500"
-              >
-                <Download className="w-5 h-5" />
-                Download {outputExt.toUpperCase()}
-              </button>
-
-              {canShare && (
-                <button
-                  onClick={handleShare}
-                  className="w-full py-3 bg-slate-800 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Share Video
-                </button>
-              )}
 
               <button
                 onClick={resetAll}
-                className="w-full py-3 text-slate-500 font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+                className="w-16 h-16 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center active:scale-[0.95] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+                aria-label="Convert another video"
               >
-                <RotateCcw className="w-4 h-4" />
-                Start Over
+                <RefreshCw className="w-7 h-7" />
               </button>
+              <p className="text-xs text-slate-600">Tap to convert another</p>
             </div>
           )}
         </div>
