@@ -328,7 +328,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 min-h-0 overflow-y-auto">
-        <div className="max-w-xl mx-auto px-4 py-4 sm:py-6 flex flex-col gap-3 sm:gap-4 min-h-full">
+        <div className="max-w-xl mx-auto px-4 py-3 sm:py-5 flex flex-col gap-2 sm:gap-3 min-h-full">
 
           {/* ERROR */}
           {isError && (
@@ -348,25 +348,24 @@ const App: React.FC = () => {
 
           {/* IDLE */}
           {isIdle && !resultVideoUrl && (
-            <>
-              <div className="text-center pt-3 sm:pt-5">
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-                  Convert MP3 to<br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">MP4 Video</span>
+            <div className="flex flex-col flex-1 min-h-0">
+              <div className="text-center pt-1 pb-2">
+                <h2 className="text-xl font-extrabold text-white tracking-tight">
+                  Convert MP3 to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">MP4 Video</span>
                 </h2>
-                <p className="text-sm text-slate-400 mt-2">
+                <p className="text-xs text-slate-400 mt-1">
                   Pick a cover image and audio file, then tap convert.
                 </p>
               </div>
 
               {validationError && (
-                <div className="bg-red-950/30 border border-red-500/30 rounded-xl px-4 py-3 flex items-start gap-3">
+                <div className="bg-red-950/30 border border-red-500/30 rounded-xl px-4 py-2.5 flex items-start gap-3 mb-2">
                   <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                   <p className="text-sm text-red-300">{validationError}</p>
                 </div>
               )}
 
-              <div className="flex flex-col landscape:flex-row gap-3 flex-1 min-h-0">
+              <div className="flex flex-col landscape:flex-row gap-2.5 flex-1 min-h-0">
                 <FileUploader
                   label="1. Cover Image"
                   accept="image/jpeg,image/png,image/webp"
@@ -388,41 +387,33 @@ const App: React.FC = () => {
               </div>
 
               {audioDuration && (
-                <p className="text-xs text-slate-500 text-center">
+                <p className="text-xs text-slate-500 text-center mt-1">
                   Duration: {audioDuration} &middot; Conversion takes about the same time
                 </p>
               )}
 
-              {image.previewUrl && (
-                <div className="rounded-xl overflow-hidden border border-slate-700/50 aspect-video bg-black">
-                  <img src={image.previewUrl} alt="Cover preview" className="w-full h-full object-contain" />
-                </div>
-              )}
+              <div className="mt-auto pt-2 space-y-2">
+                <button
+                  disabled={!canConvert}
+                  onClick={startConversion}
+                  className={`w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-[0.97] flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-indigo-500 ${
+                    canConvert
+                      ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25'
+                      : 'bg-slate-800/60 text-slate-600 border border-slate-700/30'
+                  }`}
+                >
+                  <Video className="w-5 h-5" />
+                  Convert to MP4
+                </button>
 
-              <button
-                disabled={!canConvert}
-                onClick={startConversion}
-                className={`w-full py-4 sm:py-5 rounded-xl font-bold text-lg transition-all active:scale-[0.97] flex items-center justify-center gap-2.5 focus-visible:outline-2 focus-visible:outline-indigo-500 shrink-0 ${
-                  canConvert
-                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25'
-                    : 'bg-slate-800/60 text-slate-600 border border-slate-700/30'
-                }`}
-              >
-                <Video className="w-5 h-5" />
-                Convert to MP4
-              </button>
-
-              {!canConvert && (
-                <p className="text-xs text-slate-600 text-center">
-                  {!image.file && !audio.file ? 'Select a cover image and audio file to start' :
-                   !image.file ? 'Select a cover image to continue' : 'Select an audio file to continue'}
+                <p className="text-xs text-slate-600 text-center pb-0.5">
+                  {!canConvert
+                    ? (!image.file && !audio.file ? 'Select a cover image and audio file to start' :
+                       !image.file ? 'Select a cover image to continue' : 'Select an audio file to continue')
+                    : 'All files stay on your device'}
                 </p>
-              )}
-
-              <p className="text-xs text-slate-600 text-center pb-1">
-                All files stay on your device &middot; Not affiliated with YouTube
-              </p>
-            </>
+              </div>
+            </div>
           )}
 
           {/* CONVERTING */}

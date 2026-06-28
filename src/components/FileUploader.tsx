@@ -27,8 +27,8 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       type="button"
       onClick={() => inputRef.current?.click()}
       className={`
-        w-full flex-1 rounded-2xl flex flex-col items-center justify-center gap-3 p-5
-        transition-all duration-200 active:scale-[0.98] min-h-[120px]
+        w-full flex-1 rounded-2xl flex flex-col items-center justify-center gap-2.5 p-4
+        transition-all duration-200 active:scale-[0.98] min-h-[100px] max-h-[200px]
         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500
         ${selectedFileName
           ? 'bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_20px_-3px_rgba(16,185,129,0.15)]'
