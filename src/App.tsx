@@ -359,8 +359,8 @@ const App: React.FC = () => {
         <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
       </header>
 
-      <main className="flex-1 min-h-0 overflow-y-auto">
-        <div className="max-w-xl mx-auto px-4 py-3 sm:py-5 flex flex-col gap-2 sm:gap-3 min-h-full">
+      <main className="flex-1 min-h-0 overflow-hidden">
+        <div className="max-w-xl mx-auto px-4 py-2 sm:py-4 flex flex-col gap-2 sm:gap-3 h-full">
 
           {/* ERROR */}
           {isError && (
@@ -381,12 +381,12 @@ const App: React.FC = () => {
           {/* IDLE */}
           {isIdle && !resultVideoUrl && (
             <div className="flex flex-col flex-1 min-h-0">
-              <div className="text-center pt-1 pb-2">
+              <div className="text-center pt-1 pb-1">
                 <h2 className="text-xl font-extrabold text-white tracking-tight">
                   Convert MP3 to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">MP4 Video</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Pick a cover image and audio file, then tap convert.
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Pick a cover image and audio file, then tap create.
                 </p>
               </div>
 
