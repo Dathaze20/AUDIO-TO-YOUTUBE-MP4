@@ -1,7 +1,8 @@
 {
-  "name": "vocal-canvas-final-version-2026",
+  "name": "audio-to-youtube-mp4",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Turn an MP3 and cover image into a YouTube-ready MP4. No video editor required.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,10 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.35.0",
     "@tailwindcss/vite": "^4.3.0",
     "lucide-react": "^1.16.0",
-    "motion": "^12.38.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "tailwindcss": "^4.3.0"

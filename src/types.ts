@@ -1,22 +1,18 @@
-
 export interface FileState {
-  file: File | Blob | null;
+  file: File | null;
   previewUrl: string | null;
   name: string;
 }
 
-export enum RenderStatus {
+export enum ConversionStatus {
   IDLE = 'IDLE',
-  GENERATING_IMAGE = 'GENERATING_IMAGE',
-  GENERATING_AUDIO = 'GENERATING_AUDIO',
-  PREPARING = 'PREPARING',
-  RENDERING = 'RENDERING',
+  CONVERTING = 'CONVERTING',
   COMPLETED = 'COMPLETED',
   ERROR = 'ERROR'
 }
 
-export interface RenderingProgress {
-  status: RenderStatus;
+export interface ConversionProgress {
+  status: ConversionStatus;
   progress: number;
   message: string;
 }
