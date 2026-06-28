@@ -59,14 +59,35 @@ const App: React.FC = () => {
   // Track blob URLs in refs so cleanup doesn't depend on stale state
   const imageUrlRef = useRef<string | null>(null);
   const audioUrlRef = useRef<string | null>(null);
+  const drawFnRef = useRef<(() => void) | null>(null);
+  const isPausedRef = useRef(false);
 
-  // Reacquire wake lock when tab regains focus
+  // Pause/resume conversion when the tab loses/regains visibility (phone calls, app switching)
   useEffect(() => {
     const onVisibility = async () => {
-      if (document.visibilityState === 'visible' && conversionState.status === ConversionStatus.CONVERTING) {
+      if (conversionState.status !== ConversionStatus.CONVERTING) return;
+
+      if (document.visibilityState === 'hidden') {
+        // Pause everything
+        isPausedRef.current = true;
+        if (recorderRef.current?.state === 'recording') recorderRef.current.pause();
+        if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
+        if (renderLoopRef.current) { cancelAnimationFrame(renderLoopRef.current); renderLoopRef.current = null; }
+        setConversionState(prev => ({ ...prev, message: 'Paused — return to continue' }));
+      } else if (document.visibilityState === 'visible' && isPausedRef.current) {
+        // Resume everything
+        isPausedRef.current = false;
         if ('wakeLock' in navigator) {
           try { wakeLockRef.current = await navigator.wakeLock.request('screen'); } catch {}
         }
+        if (audioContextRef.current?.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
+        if (recorderRef.current?.state === 'paused') recorderRef.current.resume();
+        if (audioRef.current) {
+          try { await audioRef.current.play(); } catch {}
+        }
+        if (drawFnRef.current) drawFnRef.current();
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -109,9 +130,12 @@ const App: React.FC = () => {
   }, []);
 
   const stopRecording = useCallback(() => {
-    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+    const state = recorderRef.current?.state;
+    if (state === 'recording' || state === 'paused') recorderRef.current!.stop();
     if (renderLoopRef.current) { cancelAnimationFrame(renderLoopRef.current); renderLoopRef.current = null; }
     if (wakeLockRef.current) { try { wakeLockRef.current.release(); } catch {} wakeLockRef.current = null; }
+    isPausedRef.current = false;
+    drawFnRef.current = null;
   }, []);
 
   const cancelConversion = useCallback(() => {
@@ -300,6 +324,7 @@ const App: React.FC = () => {
         renderLoopRef.current = requestAnimationFrame(draw);
       };
 
+      drawFnRef.current = draw;
       audioRef.current.currentTime = 0;
       await audioCtx.resume();
       recorder.start();
@@ -428,9 +453,9 @@ const App: React.FC = () => {
             <div className="flex-1 flex flex-col gap-4 justify-center py-4">
               <div className="aspect-video rounded-xl overflow-hidden bg-black border border-slate-700 relative">
                 <canvas ref={canvasRef} className="w-full h-full object-contain" />
-                <div className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-red-600 rounded flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                  <span className="text-[10px] text-white font-bold uppercase tracking-wide">REC</span>
+                <div className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded flex items-center gap-1.5 ${conversionState.message.startsWith('Paused') ? 'bg-amber-600' : 'bg-red-600'}`}>
+                  <div className={`w-1.5 h-1.5 bg-white rounded-full ${conversionState.message.startsWith('Paused') ? '' : 'animate-pulse'}`} />
+                  <span className="text-[10px] text-white font-bold uppercase tracking-wide">{conversionState.message.startsWith('Paused') ? 'PAUSED' : 'REC'}</span>
                 </div>
               </div>
 
@@ -458,7 +483,9 @@ const App: React.FC = () => {
                 </div>
 
                 <p className="text-xs text-slate-500 text-center">
-                  Keep this tab open &middot; Screen will stay on
+                  {conversionState.message.startsWith('Paused')
+                    ? 'Return to this tab to resume'
+                    : 'Keep this tab open · Screen will stay on'}
                 </p>
 
                 <button
