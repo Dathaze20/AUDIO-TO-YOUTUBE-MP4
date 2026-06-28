@@ -7,7 +7,8 @@ import {
   Download,
   RotateCcw,
   AlertCircle,
-  X
+  X,
+  Share2
 } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import { FileState, ConversionStatus, ConversionProgress } from './types';
@@ -32,6 +33,10 @@ function validateFile(file: File, acceptedTypes: string[], label: string): strin
   return null;
 }
 
+function vibrate(pattern: number | number[]) {
+  try { navigator.vibrate?.(pattern); } catch {}
+}
+
 const App: React.FC = () => {
   const [image, setImage] = useState<FileState>({ file: null, previewUrl: null, name: '' });
   const [audio, setAudio] = useState<FileState>({ file: null, previewUrl: null, name: '' });
@@ -40,6 +45,7 @@ const App: React.FC = () => {
     status: ConversionStatus.IDLE, progress: 0, message: ''
   });
   const [resultVideoUrl, setResultVideoUrl] = useState<string | null>(null);
+  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
   const [outputExt, setOutputExt] = useState('mp4');
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -50,6 +56,10 @@ const App: React.FC = () => {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+
+  // Track blob URLs in refs so cleanup doesn't depend on stale state
+  const imageUrlRef = useRef<string | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
   // Reacquire wake lock when tab regains focus
   useEffect(() => {
@@ -66,24 +76,38 @@ const App: React.FC = () => {
 
   const handleImageSelect = useCallback((file: File) => {
     const error = validateFile(file, ACCEPTED_IMAGE_TYPES, 'Image');
-    if (error) { setValidationError(error); return; }
+    if (error) {
+      setValidationError(error);
+      vibrate([50, 30, 50]);
+      return;
+    }
     setValidationError(null);
-    if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
-    setImage({ file, previewUrl: URL.createObjectURL(file), name: file.name });
-  }, [image.previewUrl]);
+    // Clean up old URL using ref (avoids stale closure)
+    if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+    const url = URL.createObjectURL(file);
+    imageUrlRef.current = url;
+    setImage({ file, previewUrl: url, name: file.name });
+    vibrate(15);
+  }, []);
 
   const handleAudioSelect = useCallback((file: File) => {
     const error = validateFile(file, ACCEPTED_AUDIO_TYPES, 'Audio');
-    if (error) { setValidationError(error); return; }
+    if (error) {
+      setValidationError(error);
+      vibrate([50, 30, 50]);
+      return;
+    }
     setValidationError(null);
-    if (audio.previewUrl) URL.revokeObjectURL(audio.previewUrl);
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
     const url = URL.createObjectURL(file);
+    audioUrlRef.current = url;
     setAudio({ file, previewUrl: url, name: file.name });
+    vibrate(15);
     const tmp = new Audio(url);
     tmp.addEventListener('loadedmetadata', () => {
       if (isFinite(tmp.duration)) setAudioDuration(formatTime(tmp.duration));
     });
-  }, [audio.previewUrl]);
+  }, []);
 
   const stopRecording = useCallback(() => {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
@@ -95,25 +119,38 @@ const App: React.FC = () => {
     stopRecording();
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
     setConversionState({ status: ConversionStatus.IDLE, progress: 0, message: '' });
+    vibrate(30);
   }, [stopRecording]);
 
   const resetAll = useCallback(() => {
     stopRecording();
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
     if (resultVideoUrl) URL.revokeObjectURL(resultVideoUrl);
-    if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
-    if (audio.previewUrl) URL.revokeObjectURL(audio.previewUrl);
+    if (imageUrlRef.current) { URL.revokeObjectURL(imageUrlRef.current); imageUrlRef.current = null; }
+    if (audioUrlRef.current) { URL.revokeObjectURL(audioUrlRef.current); audioUrlRef.current = null; }
     setImage({ file: null, previewUrl: null, name: '' });
     setAudio({ file: null, previewUrl: null, name: '' });
     setAudioDuration('');
     setConversionState({ status: ConversionStatus.IDLE, progress: 0, message: '' });
     setResultVideoUrl(null);
+    setResultBlob(null);
     setOutputExt('mp4');
     setValidationError(null);
-  }, [resultVideoUrl, image.previewUrl, audio.previewUrl, stopRecording]);
+    vibrate(15);
+  }, [resultVideoUrl, stopRecording]);
+
+  const handleShare = useCallback(async () => {
+    if (!resultBlob) return;
+    const file = new File([resultBlob], `youtube-video.${outputExt}`, { type: resultBlob.type });
+    try {
+      await navigator.share({ files: [file], title: 'YouTube Video' });
+      vibrate(15);
+    } catch {}
+  }, [resultBlob, outputExt]);
 
   const startConversion = async () => {
     if (!image.file || !audio.file || !audioRef.current) return;
+    vibrate(30);
 
     try {
       setConversionState({ status: ConversionStatus.CONVERTING, progress: 0, message: 'Preparing...' });
@@ -209,6 +246,7 @@ const App: React.FC = () => {
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
       recorder.onerror = () => {
+        vibrate([100, 50, 100]);
         setConversionState({
           status: ConversionStatus.ERROR, progress: 0,
           message: 'Recording failed unexpectedly. Try a shorter file or restart.'
@@ -217,8 +255,10 @@ const App: React.FC = () => {
 
       recorder.onstop = () => {
         const finalBlob = new Blob(chunks, { type: mimeType });
+        setResultBlob(finalBlob);
         setResultVideoUrl(URL.createObjectURL(finalBlob));
         setConversionState({ status: ConversionStatus.COMPLETED, progress: 100, message: 'Ready to download' });
+        vibrate([40, 60, 40, 60, 80]);
       };
 
       let lastUpdate = 0;
@@ -260,6 +300,7 @@ const App: React.FC = () => {
 
     } catch (err) {
       console.error('Conversion failed:', err);
+      vibrate([100, 50, 100]);
       setConversionState({
         status: ConversionStatus.ERROR, progress: 0,
         message: err instanceof Error ? err.message : 'Something went wrong. Please try again.'
@@ -272,6 +313,7 @@ const App: React.FC = () => {
   const isConverting = conversionState.status === ConversionStatus.CONVERTING;
   const isError = conversionState.status === ConversionStatus.ERROR;
   const isComplete = conversionState.status === ConversionStatus.COMPLETED;
+  const canShare = typeof navigator.share === 'function' && !!resultBlob;
 
   return (
     <div className="h-[100dvh] flex flex-col bg-slate-900 text-slate-100 font-sans overflow-hidden">
@@ -347,7 +389,6 @@ const App: React.FC = () => {
                 )}
               </div>
 
-              {/* Image preview */}
               {image.previewUrl && (
                 <div className="rounded-xl overflow-hidden border border-slate-700/50 aspect-video bg-black">
                   <img src={image.previewUrl} alt="Cover preview" className="w-full h-full object-contain" />
@@ -444,12 +485,23 @@ const App: React.FC = () => {
                   a.href = resultVideoUrl;
                   a.download = `youtube-video-${Date.now()}.${outputExt}`;
                   a.click();
+                  vibrate(15);
                 }}
                 className="w-full py-3.5 sm:py-4 bg-emerald-600 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-emerald-500"
               >
                 <Download className="w-5 h-5" />
                 Download {outputExt.toUpperCase()}
               </button>
+
+              {canShare && (
+                <button
+                  onClick={handleShare}
+                  className="w-full py-3 bg-slate-800 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share Video
+                </button>
+              )}
 
               <button
                 onClick={resetAll}
