@@ -383,7 +383,7 @@ const App: React.FC = () => {
             <div className="flex flex-col flex-1 min-h-0">
               <div className="text-center pt-1 pb-2">
                 <h2 className="text-xl font-extrabold text-white tracking-tight">
-                  Convert MP3 to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">MP4 Video</span>
+                  Create a <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">YouTube-Ready Video</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
                   Pick a cover image and audio file, then tap convert.
@@ -435,14 +435,14 @@ const App: React.FC = () => {
                   }`}
                 >
                   <Video className="w-5 h-5" />
-                  Convert to MP4
+                  Create Video
                 </button>
 
                 <p className="text-xs text-slate-600 text-center pb-0.5">
                   {!canConvert
                     ? (!image.file && !audio.file ? 'Select a cover image and audio file to start' :
                        !image.file ? 'Select a cover image to continue' : 'Select an audio file to continue')
-                    : 'All files stay on your device'}
+                    : 'Creates MP4 or WebM depending on your browser. Both upload to YouTube.'}
                 </p>
               </div>
             </div>
@@ -504,7 +504,7 @@ const App: React.FC = () => {
             <div className="flex-1 flex flex-col items-center justify-center gap-5 py-4">
               <CheckCircle2 className="w-16 h-16 text-emerald-400" />
               <div className="text-center">
-                <h2 className="text-xl font-bold text-white">Video Saved</h2>
+                <h2 className="text-xl font-bold text-white">Video Saved as .{outputExt}</h2>
                 <p className="text-sm text-slate-400 mt-1">Check your Downloads folder</p>
               </div>
 
