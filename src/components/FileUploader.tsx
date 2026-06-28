@@ -59,14 +59,14 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         ) : icon}
       </div>
 
-      <div className="text-center min-w-0">
+      <div className="text-center min-w-0 w-full px-2 overflow-hidden">
         <div className="flex items-center justify-center gap-1.5">
-          <span className={`text-base font-semibold truncate ${selectedFileName ? 'text-emerald-400' : 'text-white'}`}>
+          <span className={`text-sm font-semibold truncate max-w-[80%] ${selectedFileName ? 'text-emerald-400' : 'text-white'}`}>
             {selectedFileName || label}
           </span>
           {selectedFileName && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
         </div>
-        <span className="text-xs text-slate-500 block mt-1">
+        <span className="text-xs text-slate-500 block mt-0.5">
           {selectedFileName ? 'Tap to change' : hint}
         </span>
       </div>
