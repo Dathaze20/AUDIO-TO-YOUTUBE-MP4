@@ -1,10 +1,10 @@
 # Audio to YouTube MP4
 
-Turn an MP3 and cover image into a YouTube-ready MP4. No video editor required.
+Turn audio and cover art into a YouTube-ready video. No video editor required.
 
 ## What It Does
 
-Select an audio file and a cover image, and this tool creates a video file with your image displayed for the full duration of the audio. The output is a 1280x720 (720p) MP4 or WebM video ready to upload to YouTube.
+Select an audio file and a cover image, and this tool creates a video file with your image displayed for the full duration of the audio. The output is a 1280x720 (720p) video ready to upload to YouTube.
 
 ## Supported Formats
 
@@ -12,7 +12,7 @@ Select an audio file and a cover image, and this tool creates a video file with 
 
 **Input image:** JPG, PNG, WebP
 
-**Output video:** MP4 (H.264) on supported browsers, WebM (VP8/Opus) as fallback. Resolution is 1280x720 at 30fps.
+**Output video:** WebM (VP8/Opus) on Android Chrome and most Chromium browsers. MP4 (H.264/AAC) where the browser supports it. YouTube accepts both formats. Resolution is 1280x720 at 30fps.
 
 ## How It Works
 
@@ -50,7 +50,8 @@ This app is designed to work on Android phones (tested on Samsung Galaxy A16 wit
 - The app uses Wake Lock API to keep the screen on during conversion.
 - Conversion runs in real-time: a 3-minute song takes about 3 minutes to convert.
 - Processing time depends on your device and the length of the audio file.
-- Keep the browser tab open and in the foreground during conversion.
+- Designed to pause and resume on supported mobile browsers when the app is interrupted (e.g. phone calls, switching apps).
+- Keep the browser tab open during conversion.
 
 **Browser support:** Chrome 94+, Edge 94+, and other Chromium-based browsers. Safari and Firefox have limited MediaRecorder support and may not produce MP4 output.
 
