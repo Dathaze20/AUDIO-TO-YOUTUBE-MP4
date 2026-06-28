@@ -53,8 +53,7 @@ const App: React.FC = () => {
   const renderLoopRef = useRef<number | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const audioCleanupRef = useRef<(() => void) | null>(null);
 
   // Track blob URLs in refs so cleanup doesn't depend on stale state
   const imageUrlRef = useRef<string | null>(null);
@@ -109,6 +108,8 @@ const App: React.FC = () => {
   }, []);
 
   const stopRecording = useCallback(() => {
+    audioCleanupRef.current?.();
+    audioCleanupRef.current = null;
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
     if (renderLoopRef.current) { cancelAnimationFrame(renderLoopRef.current); renderLoopRef.current = null; }
     if (wakeLockRef.current) { try { wakeLockRef.current.release(); } catch {} wakeLockRef.current = null; }
@@ -186,25 +187,18 @@ const App: React.FC = () => {
         setTimeout(() => reject(new Error('Image took too long to load.')), 10000);
       });
 
-      // Audio context setup (reuse to prevent mobile crashes)
-      if (!audioContextRef.current) {
-        const AC = window.AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AC();
-      }
-      const audioCtx = audioContextRef.current;
-      const dest = audioCtx.createMediaStreamDestination();
+      // Capture audio directly from the audio element (avoids AudioContext suspension on mobile)
+      const audioEl = audioRef.current;
+      audioEl.currentTime = 0;
 
-      if (!audioSourceRef.current) {
-        audioSourceRef.current = audioCtx.createMediaElementSource(audioRef.current);
-      }
-      audioSourceRef.current.disconnect();
-      audioSourceRef.current.connect(audioCtx.destination);
-      audioSourceRef.current.connect(dest);
+      const audioStream: MediaStream = typeof (audioEl as any).captureStream === 'function'
+        ? (audioEl as any).captureStream()
+        : (audioEl as any).mozCaptureStream();
 
       const videoStream = canvas.captureStream(30);
       const combinedStream = new MediaStream([
         ...videoStream.getVideoTracks(),
-        ...dest.stream.getAudioTracks()
+        ...audioStream.getAudioTracks()
       ]);
 
       if (typeof MediaRecorder === 'undefined') {
@@ -283,16 +277,33 @@ const App: React.FC = () => {
         renderLoopRef.current = requestAnimationFrame(draw);
       };
 
+      const totalDuration = audioEl.duration;
+
+      const onAudioPause = () => {
+        if (recorderRef.current?.state === 'recording' && audioEl && !audioEl.ended) {
+          audioEl.play().catch(() => {});
+        }
+      };
+
       const onAudioEnded = () => {
-        audioRef.current?.removeEventListener('ended', onAudioEnded);
+        const played = audioEl?.currentTime || 0;
+        if (played < totalDuration * 0.5 && played < 10) {
+          audioEl?.play().catch(() => {});
+          return;
+        }
         stopRecording();
       };
-      audioRef.current.addEventListener('ended', onAudioEnded);
 
-      audioRef.current.currentTime = 0;
-      await audioCtx.resume();
+      audioEl.addEventListener('ended', onAudioEnded);
+      audioEl.addEventListener('pause', onAudioPause);
+
+      audioCleanupRef.current = () => {
+        audioEl.removeEventListener('ended', onAudioEnded);
+        audioEl.removeEventListener('pause', onAudioPause);
+      };
+
       recorder.start(1000);
-      await audioRef.current.play();
+      await audioEl.play();
       draw();
 
     } catch (err) {
