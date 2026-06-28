@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Upload, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 interface FileUploaderProps {
   label: string;
@@ -27,10 +27,10 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       type="button"
       onClick={() => inputRef.current?.click()}
       className={`
-        w-full text-left border-2 border-dashed rounded-2xl p-4 flex items-center gap-4 transition-all duration-200 active:scale-[0.98]
+        w-full border-2 border-dashed rounded-2xl py-6 px-5 flex flex-col items-center justify-center gap-2 transition-all duration-200 active:scale-[0.97] min-h-[130px]
         ${selectedFileName
-          ? 'border-emerald-500/60 bg-emerald-950/20'
-          : 'border-slate-700 bg-slate-800/40 hover:border-indigo-500/60 hover:bg-slate-800/60'}
+          ? 'border-emerald-500/60 bg-emerald-950/15'
+          : 'border-slate-600/60 bg-slate-800/30'}
       `}
       aria-label={selectedFileName ? `${label}: ${selectedFileName}. Tap to change.` : `${label}. Tap to select file.`}
     >
@@ -47,8 +47,8 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       />
 
       <div className={`
-        w-14 h-14 rounded-xl flex items-center justify-center shrink-0 overflow-hidden
-        ${selectedFileName ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/60 text-slate-400'}
+        w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden
+        ${selectedFileName ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 text-slate-400'}
       `}>
         {previewUrl ? (
           <img src={previewUrl} alt="Selected cover preview" className="w-full h-full object-cover" />
@@ -57,20 +57,19 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         )}
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className={`font-semibold text-sm truncate ${selectedFileName ? 'text-emerald-400' : 'text-slate-200'}`}>
-            {selectedFileName || label}
+      {selectedFileName ? (
+        <>
+          <span className="text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
+            {selectedFileName.length > 28 ? selectedFileName.substring(0, 25) + '...' : selectedFileName}
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
           </span>
-          {selectedFileName && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-        </div>
-        <p className="text-xs text-slate-500 mt-0.5">
-          {selectedFileName ? 'Tap to change' : hint}
-        </p>
-      </div>
-
-      {!selectedFileName && (
-        <Upload className="w-5 h-5 text-slate-500 shrink-0" />
+          <span className="text-xs text-slate-500">Tap to change</span>
+        </>
+      ) : (
+        <>
+          <span className="text-base font-semibold text-slate-200">{label}</span>
+          <span className="text-xs text-slate-500">{hint}</span>
+        </>
       )}
     </button>
   );

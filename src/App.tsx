@@ -40,7 +40,6 @@ const App: React.FC = () => {
     message: ''
   });
   const [resultVideoUrl, setResultVideoUrl] = useState<string | null>(null);
-  const [audioDuration, setAudioDuration] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,10 +52,7 @@ const App: React.FC = () => {
 
   const handleImageSelect = useCallback((file: File) => {
     const error = validateFile(file, ACCEPTED_IMAGE_TYPES, 'Cover image');
-    if (error) {
-      setValidationError(error);
-      return;
-    }
+    if (error) { setValidationError(error); return; }
     setValidationError(null);
     if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
     setImage({ file, previewUrl: URL.createObjectURL(file), name: file.name });
@@ -64,35 +60,16 @@ const App: React.FC = () => {
 
   const handleAudioSelect = useCallback((file: File) => {
     const error = validateFile(file, ACCEPTED_AUDIO_TYPES, 'Audio file');
-    if (error) {
-      setValidationError(error);
-      return;
-    }
+    if (error) { setValidationError(error); return; }
     setValidationError(null);
     if (audio.previewUrl) URL.revokeObjectURL(audio.previewUrl);
-    const url = URL.createObjectURL(file);
-    setAudio({ file, previewUrl: url, name: file.name });
-
-    const tempAudio = new Audio(url);
-    tempAudio.addEventListener('loadedmetadata', () => {
-      if (isFinite(tempAudio.duration)) {
-        setAudioDuration(formatTime(tempAudio.duration));
-      }
-    });
+    setAudio({ file, previewUrl: URL.createObjectURL(file), name: file.name });
   }, [audio.previewUrl]);
 
   const stopRecording = useCallback(() => {
-    if (recorderRef.current?.state === 'recording') {
-      recorderRef.current.stop();
-    }
-    if (renderLoopRef.current) {
-      cancelAnimationFrame(renderLoopRef.current);
-      renderLoopRef.current = null;
-    }
-    if (wakeLockRef.current) {
-      try { wakeLockRef.current.release(); } catch {}
-      wakeLockRef.current = null;
-    }
+    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+    if (renderLoopRef.current) { cancelAnimationFrame(renderLoopRef.current); renderLoopRef.current = null; }
+    if (wakeLockRef.current) { try { wakeLockRef.current.release(); } catch {} wakeLockRef.current = null; }
   }, []);
 
   const resetAll = useCallback(() => {
@@ -104,7 +81,6 @@ const App: React.FC = () => {
     setAudio({ file: null, previewUrl: null, name: '' });
     setConversionState({ status: ConversionStatus.IDLE, progress: 0, message: '' });
     setResultVideoUrl(null);
-    setAudioDuration('');
     setValidationError(null);
   }, [resultVideoUrl, image.previewUrl, audio.previewUrl, stopRecording]);
 
@@ -112,16 +88,10 @@ const App: React.FC = () => {
     if (!image.file || !audio.file || !audioRef.current) return;
 
     try {
-      setConversionState({
-        status: ConversionStatus.CONVERTING,
-        progress: 0,
-        message: 'Preparing...'
-      });
+      setConversionState({ status: ConversionStatus.CONVERTING, progress: 0, message: 'Preparing...' });
 
       if ('wakeLock' in navigator) {
-        try {
-          wakeLockRef.current = await navigator.wakeLock.request('screen');
-        } catch {}
+        try { wakeLockRef.current = await navigator.wakeLock.request('screen'); } catch {}
       }
 
       if (audioRef.current.readyState < 1) {
@@ -144,10 +114,7 @@ const App: React.FC = () => {
         canvas = canvasRef.current;
         attempts++;
       }
-
-      if (!canvas) {
-        throw new Error('Could not initialize video canvas. Please try again.');
-      }
+      if (!canvas) throw new Error('Could not initialize video canvas. Please try again.');
 
       const ctx = canvas.getContext('2d', { alpha: false })!;
       canvas.width = 1280;
@@ -164,14 +131,12 @@ const App: React.FC = () => {
         const AC = window.AudioContext || (window as any).webkitAudioContext;
         audioContextRef.current = new AC();
       }
-
       const audioCtx = audioContextRef.current;
       const dest = audioCtx.createMediaStreamDestination();
 
       if (!audioSourceRef.current) {
         audioSourceRef.current = audioCtx.createMediaElementSource(audioRef.current);
       }
-
       audioSourceRef.current.disconnect();
       audioSourceRef.current.connect(audioCtx.destination);
       audioSourceRef.current.connect(dest);
@@ -204,35 +169,24 @@ const App: React.FC = () => {
 
       recorderRef.current = recorder;
       const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
       recorder.onstop = () => {
         const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
         const finalBlob = new Blob(chunks, { type: mimeType });
-        const url = URL.createObjectURL(finalBlob);
-        setResultVideoUrl(url);
-        setConversionState({
-          status: ConversionStatus.COMPLETED,
-          progress: 100,
-          message: `Conversion complete (${ext.toUpperCase()})`
-        });
+        setResultVideoUrl(URL.createObjectURL(finalBlob));
+        setConversionState({ status: ConversionStatus.COMPLETED, progress: 100, message: `Done (${ext.toUpperCase()})` });
       };
 
       let lastUpdate = 0;
       const draw = () => {
         if (!ctx || !audioRef.current) return;
-
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, 1280, 720);
-
         const ratio = Math.max(1280 / img.width, 720 / img.height);
         const w = img.width * ratio;
         const h = img.height * ratio;
-        const x = (1280 - w) / 2;
-        const y = (720 - h) / 2;
-        ctx.drawImage(img, x, y, w, h);
+        ctx.drawImage(img, (1280 - w) / 2, (720 - h) / 2, w, h);
 
         const now = Date.now();
         const time = audioRef.current.currentTime;
@@ -278,208 +232,164 @@ const App: React.FC = () => {
   const isComplete = conversionState.status === ConversionStatus.COMPLETED;
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-slate-900 text-slate-100 font-sans">
+    <div className="h-[100dvh] flex flex-col bg-slate-900 text-slate-100 font-sans overflow-hidden">
       {/* Header */}
-      <header className="bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-3 flex items-center justify-between shrink-0 sticky top-0 z-50">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <Video className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-white leading-tight">Audio to YouTube MP4</h1>
-          </div>
+      <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center gap-2.5 shrink-0">
+        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <Video className="w-4 h-4 text-white" strokeWidth={2.5} />
         </div>
+        <h1 className="text-sm font-bold text-white">Audio to YouTube MP4</h1>
       </header>
 
-      {/* Main */}
-      <main className="flex-1 w-full max-w-lg mx-auto px-4 py-6 flex flex-col gap-5">
+      {/* Main content - fills remaining space */}
+      <main className="flex-1 min-h-0 overflow-y-auto">
+        <div className="max-w-lg mx-auto px-4 py-5 flex flex-col gap-4 min-h-full">
 
-        {/* Error state */}
-        {isError && (
-          <div className="bg-red-950/30 border border-red-500/30 rounded-2xl p-6 text-center">
-            <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-white mb-2">Conversion Failed</h3>
-            <p className="text-sm text-red-300 mb-5">{conversionState.message}</p>
-            <button
-              onClick={resetAll}
-              className="w-full py-3 bg-slate-800 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Try Again
-            </button>
-          </div>
-        )}
-
-        {/* Idle: file selection */}
-        {isIdle && !resultVideoUrl && (
-          <>
-            <div className="text-center">
-              <h2 className="text-lg font-bold text-white">
-                Create a YouTube-Ready MP4
-              </h2>
-              <p className="text-sm text-slate-400 mt-1">
-                Turn an MP3 and cover image into a YouTube-ready MP4. No video editor required.
-              </p>
+          {/* === ERROR STATE === */}
+          {isError && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 px-2">
+              <AlertCircle className="w-12 h-12 text-red-400" />
+              <h3 className="text-lg font-bold text-white text-center">Conversion Failed</h3>
+              <p className="text-sm text-red-300 text-center">{conversionState.message}</p>
+              <button
+                onClick={resetAll}
+                className="w-full py-4 bg-slate-800 text-white rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Try Again
+              </button>
             </div>
+          )}
 
-            {validationError && (
-              <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl px-4 py-3 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-300">{validationError}</p>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-3">
-              <FileUploader
-                label="Cover Image"
-                accept="image/jpeg,image/png,image/webp"
-                hint="JPG, PNG, or WebP"
-                selectedFileName={image.name}
-                previewUrl={image.previewUrl}
-                onFileSelect={handleImageSelect}
-                icon={<ImageIcon className="w-6 h-6" />}
-              />
-
-              <FileUploader
-                label="Audio File"
-                accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac,audio/mp4,audio/x-m4a"
-                hint="MP3, WAV, OGG, AAC, or M4A"
-                selectedFileName={audio.name}
-                onFileSelect={handleAudioSelect}
-                icon={<Music className="w-6 h-6" />}
-              />
-
-              {audioDuration && (
-                <p className="text-xs text-slate-500 text-center">
-                  Audio duration: {audioDuration}
+          {/* === IDLE: File selection === */}
+          {isIdle && !resultVideoUrl && (
+            <>
+              {/* Title */}
+              <div className="text-center pt-2">
+                <h2 className="text-xl font-bold text-white">
+                  Convert MP3 to <span className="text-indigo-400">MP4 Video</span>
+                </h2>
+                <p className="text-sm text-slate-400 mt-1">
+                  Pick a cover image and audio file, then tap convert.
                 </p>
-              )}
-            </div>
-
-            {/* Image preview */}
-            {image.previewUrl && (
-              <div className="rounded-xl overflow-hidden border border-slate-700 aspect-video bg-black">
-                <img
-                  src={image.previewUrl}
-                  alt="Cover image preview"
-                  className="w-full h-full object-contain"
-                />
               </div>
-            )}
 
-            <button
-              disabled={!canConvert}
-              onClick={startConversion}
-              className="w-full py-4 bg-indigo-600 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl font-bold text-base transition-all active:scale-[0.97] flex items-center justify-center gap-2"
-            >
-              <Video className="w-5 h-5" />
-              Convert to MP4
-            </button>
-
-            {!canConvert && (
-              <p className="text-xs text-slate-500 text-center">
-                Select both a cover image and an audio file to start.
-              </p>
-            )}
-
-            <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl px-4 py-3">
-              <h3 className="text-xs font-semibold text-slate-300 mb-1.5">How it works</h3>
-              <ul className="text-xs text-slate-500 space-y-1">
-                <li>Your cover image is displayed for the full audio duration</li>
-                <li>Output is a 1280x720 (720p) video file</li>
-                <li>Processing time depends on audio length and your device</li>
-                <li>All files stay on your device - nothing is uploaded</li>
-              </ul>
-            </div>
-          </>
-        )}
-
-        {/* Converting */}
-        {isConverting && (
-          <div className="flex flex-col gap-4 justify-center flex-1">
-            <div className="aspect-video rounded-xl overflow-hidden bg-black border border-slate-700 relative">
-              <canvas ref={canvasRef} className="w-full h-full object-contain" />
-              <div className="absolute top-3 left-3 px-2 py-1 bg-red-600 rounded-md flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                <span className="text-[10px] text-white font-bold uppercase tracking-wide">Recording</span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex justify-between items-baseline">
-                <div>
-                  <h3 className="text-base font-bold text-white">Converting...</h3>
-                  <p className="text-sm text-slate-400 mt-0.5">{conversionState.message}</p>
+              {validationError && (
+                <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl px-4 py-3 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-300">{validationError}</p>
                 </div>
-                <span className="text-2xl font-bold text-indigo-400 tabular-nums">{conversionState.progress}%</span>
-              </div>
+              )}
 
-              <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-indigo-500 rounded-full transition-all duration-300"
-                  style={{ width: `${conversionState.progress}%` }}
+              {/* Upload areas - big and centered like original */}
+              <div className="flex-1 flex flex-col gap-3 justify-center">
+                <FileUploader
+                  label="1. Cover Image"
+                  accept="image/jpeg,image/png,image/webp"
+                  hint="Tap to select from phone"
+                  selectedFileName={image.name}
+                  previewUrl={image.previewUrl}
+                  onFileSelect={handleImageSelect}
+                  icon={<ImageIcon className="w-7 h-7" />}
                 />
+
+                <FileUploader
+                  label="2. Audio File (MP3)"
+                  accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac,audio/mp4,audio/x-m4a"
+                  hint="Tap to select from phone"
+                  selectedFileName={audio.name}
+                  onFileSelect={handleAudioSelect}
+                  icon={<Music className="w-7 h-7" />}
+                />
+
+                <button
+                  disabled={!canConvert}
+                  onClick={startConversion}
+                  className="w-full py-4 bg-indigo-600 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-2xl font-bold text-base transition-all active:scale-[0.97] flex items-center justify-center gap-2 mt-1"
+                >
+                  <Video className="w-5 h-5" />
+                  {canConvert ? 'Convert to MP4' : 'Select files to start'}
+                </button>
               </div>
 
-              <p className="text-xs text-slate-500 text-center">
-                Keep this tab open. Your phone screen will stay on during conversion.
+              {/* Minimal footer info */}
+              <p className="text-[11px] text-slate-600 text-center pb-1">
+                All files stay on your device &middot; Not affiliated with YouTube
               </p>
+            </>
+          )}
+
+          {/* === CONVERTING === */}
+          {isConverting && (
+            <div className="flex-1 flex flex-col gap-5 justify-center">
+              <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-slate-700 relative">
+                <canvas ref={canvasRef} className="w-full h-full object-contain" />
+                <div className="absolute top-3 left-3 px-2.5 py-1 bg-red-600 rounded-md flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                  <span className="text-[10px] text-white font-bold uppercase tracking-wide">REC</span>
+                </div>
+              </div>
+
+              <div className="space-y-3 px-1">
+                <div className="flex justify-between items-baseline">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Converting...</h3>
+                    <p className="text-sm text-slate-400">{conversionState.message}</p>
+                  </div>
+                  <span className="text-3xl font-bold text-indigo-400 tabular-nums">{conversionState.progress}%</span>
+                </div>
+
+                <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                    style={{ width: `${conversionState.progress}%` }}
+                  />
+                </div>
+
+                <p className="text-xs text-slate-500 text-center">
+                  Keep this tab open. Processing in real time.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Complete */}
-        {isComplete && resultVideoUrl && (
-          <div className="flex flex-col gap-4 justify-center flex-1">
-            <div className="text-center">
-              <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
-              <h2 className="text-lg font-bold text-white">Conversion Complete</h2>
-              <p className="text-sm text-slate-400 mt-1">{conversionState.message}</p>
+          {/* === COMPLETE === */}
+          {isComplete && resultVideoUrl && (
+            <div className="flex-1 flex flex-col gap-4 justify-center">
+              <div className="text-center">
+                <CheckCircle2 className="w-14 h-14 text-emerald-400 mx-auto mb-2" />
+                <h2 className="text-xl font-bold text-white">Done!</h2>
+                <p className="text-sm text-slate-400 mt-1">{conversionState.message}</p>
+              </div>
+
+              <div className="rounded-2xl overflow-hidden border border-slate-700 bg-black aspect-video">
+                <video src={resultVideoUrl} controls className="w-full h-full" playsInline />
+              </div>
+
+              <button
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = resultVideoUrl;
+                  a.download = `youtube-video-${Date.now()}.mp4`;
+                  a.click();
+                }}
+                className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
+              >
+                <Download className="w-5 h-5" />
+                Download MP4
+              </button>
+
+              <button
+                onClick={resetAll}
+                className="w-full py-3 text-slate-500 font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Start Over
+              </button>
             </div>
-
-            <div className="rounded-xl overflow-hidden border border-slate-700 bg-black aspect-video">
-              <video src={resultVideoUrl} controls className="w-full h-full" playsInline />
-            </div>
-
-            <button
-              onClick={() => {
-                const a = document.createElement('a');
-                a.href = resultVideoUrl;
-                const ext = resultVideoUrl ? 'mp4' : 'mp4';
-                a.download = `youtube-video-${Date.now()}.${ext}`;
-                a.click();
-              }}
-              className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
-            >
-              <Download className="w-5 h-5" />
-              Download MP4
-            </button>
-
-            <button
-              onClick={resetAll}
-              className="w-full py-3 bg-slate-800 text-slate-300 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Start Over
-            </button>
-          </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="py-4 px-4 border-t border-slate-800 bg-slate-900/80 shrink-0">
-        <div className="max-w-lg mx-auto">
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-500">
-            <span>All files stay on your device</span>
-            <span>&middot;</span>
-            <span>Not affiliated with YouTube</span>
-          </div>
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-600 mt-1">
-            <a href="#privacy" className="hover:text-slate-400" onClick={(e) => { e.preventDefault(); alert('Privacy: All conversion happens in your browser. No files are uploaded to any server. No data is collected.'); }}>Privacy</a>
-            <a href="#terms" className="hover:text-slate-400" onClick={(e) => { e.preventDefault(); alert('Terms: This tool is provided as-is. You are responsible for the content you create and upload. This tool is not affiliated with YouTube or Google.'); }}>Terms</a>
-          </div>
+          )}
         </div>
-      </footer>
+      </main>
 
       <audio
         ref={audioRef}
