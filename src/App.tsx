@@ -349,11 +349,12 @@ const App: React.FC = () => {
           {/* IDLE */}
           {isIdle && !resultVideoUrl && (
             <>
-              <div className="text-center pt-2 sm:pt-5">
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-                  Convert MP3 to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">MP4 Video</span>
+              <div className="text-center pt-3 sm:pt-5">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                  Convert MP3 to<br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">MP4 Video</span>
                 </h2>
-                <p className="text-sm text-slate-400 mt-1.5">
+                <p className="text-sm text-slate-400 mt-2">
                   Pick a cover image and audio file, then tap convert.
                 </p>
               </div>
@@ -365,7 +366,7 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex flex-col gap-2.5 sm:gap-3">
+              <div className="flex flex-col landscape:flex-row gap-3 flex-1 min-h-0">
                 <FileUploader
                   label="1. Cover Image"
                   accept="image/jpeg,image/png,image/webp"
@@ -373,7 +374,7 @@ const App: React.FC = () => {
                   selectedFileName={image.name}
                   previewUrl={image.previewUrl}
                   onFileSelect={handleImageSelect}
-                  icon={<ImageIcon className="w-6 h-6" />}
+                  icon={<ImageIcon className="w-7 h-7" />}
                 />
 
                 <FileUploader
@@ -382,15 +383,15 @@ const App: React.FC = () => {
                   hint="MP3, WAV, OGG, AAC, or M4A"
                   selectedFileName={audio.name}
                   onFileSelect={handleAudioSelect}
-                  icon={<Music className="w-6 h-6" />}
+                  icon={<Music className="w-7 h-7" />}
                 />
-
-                {audioDuration && (
-                  <p className="text-xs text-slate-500 text-center">
-                    Duration: {audioDuration} &middot; Conversion takes about the same time
-                  </p>
-                )}
               </div>
+
+              {audioDuration && (
+                <p className="text-xs text-slate-500 text-center">
+                  Duration: {audioDuration} &middot; Conversion takes about the same time
+                </p>
+              )}
 
               {image.previewUrl && (
                 <div className="rounded-xl overflow-hidden border border-slate-700/50 aspect-video bg-black">
@@ -401,7 +402,7 @@ const App: React.FC = () => {
               <button
                 disabled={!canConvert}
                 onClick={startConversion}
-                className={`w-full py-3.5 sm:py-4 rounded-xl font-bold text-base transition-all active:scale-[0.97] flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-indigo-500 ${
+                className={`w-full py-4 sm:py-5 rounded-xl font-bold text-lg transition-all active:scale-[0.97] flex items-center justify-center gap-2.5 focus-visible:outline-2 focus-visible:outline-indigo-500 shrink-0 ${
                   canConvert
                     ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25'
                     : 'bg-slate-800/60 text-slate-600 border border-slate-700/30'
@@ -418,7 +419,7 @@ const App: React.FC = () => {
                 </p>
               )}
 
-              <p className="text-xs text-slate-600 text-center mt-auto pb-2 pt-4">
+              <p className="text-xs text-slate-600 text-center pb-1">
                 All files stay on your device &middot; Not affiliated with YouTube
               </p>
             </>
