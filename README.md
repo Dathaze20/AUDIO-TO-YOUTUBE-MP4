@@ -43,6 +43,18 @@ npm run build
 
 The built files will be in the `dist/` folder, ready for static hosting.
 
+## Tests, Linting, and Type Checking
+
+```bash
+npm test        # Vitest unit/component tests
+npm run lint    # ESLint
+npm run typecheck  # TypeScript in strict mode
+```
+
+`npm run build` runs the strict type check before bundling, and CI
+(`.github/workflows/deploy.yml`) runs lint, tests, and the build on every
+push and pull request before deploying.
+
 ## Mobile Compatibility
 
 This app is designed to work on Android phones (tested on Samsung Galaxy A16 with Chrome). Key mobile considerations:

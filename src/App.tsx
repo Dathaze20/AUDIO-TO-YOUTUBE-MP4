@@ -11,26 +11,10 @@ import {
 } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import { FileState, ConversionStatus, ConversionProgress } from './types';
+import { formatTime, validateFile } from './utils';
 
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ACCEPTED_AUDIO_TYPES = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/mp4', 'audio/x-m4a'];
-
-function formatTime(seconds: number): string {
-  if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-function validateFile(file: File, acceptedTypes: string[], label: string): string | null {
-  if (acceptedTypes.length > 0 && !acceptedTypes.some(t => file.type.startsWith(t.replace('/*', '')))) {
-    return `${label}: "${file.type || file.name}" is not a supported format.`;
-  }
-  if (file.size > 500 * 1024 * 1024) {
-    return `${label} is too large (${(file.size / 1024 / 1024).toFixed(0)} MB). Max 500 MB.`;
-  }
-  return null;
-}
 
 function vibrate(pattern: number | number[]) {
   try { navigator.vibrate?.(pattern); } catch {}
@@ -44,7 +28,6 @@ const App: React.FC = () => {
     status: ConversionStatus.IDLE, progress: 0, message: ''
   });
   const [resultVideoUrl, setResultVideoUrl] = useState<string | null>(null);
-  const [resultBlob, setResultBlob] = useState<Blob | null>(null);
   const [outputExt, setOutputExt] = useState('mp4');
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -156,7 +139,6 @@ const App: React.FC = () => {
     setAudioDuration('');
     setConversionState({ status: ConversionStatus.IDLE, progress: 0, message: '' });
     setResultVideoUrl(null);
-    setResultBlob(null);
     setOutputExt('mp4');
     setValidationError(null);
     vibrate(15);
@@ -221,7 +203,7 @@ const App: React.FC = () => {
 
       // Audio routing: reuse persistent AudioContext to prevent mobile crashes
       if (!audioContextRef.current) {
-        const AC = window.AudioContext || (window as any).webkitAudioContext;
+        const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         audioContextRef.current = new AC();
       }
       const audioCtx = audioContextRef.current;
@@ -282,7 +264,6 @@ const App: React.FC = () => {
 
       recorder.onstop = () => {
         const finalBlob = new Blob(chunks, { type: mimeType });
-        setResultBlob(finalBlob);
         const url = URL.createObjectURL(finalBlob);
         setResultVideoUrl(url);
         setConversionState({ status: ConversionStatus.COMPLETED, progress: 100, message: 'Done' });
