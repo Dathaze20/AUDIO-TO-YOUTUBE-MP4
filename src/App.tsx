@@ -7,7 +7,8 @@ import {
   RotateCcw,
   AlertCircle,
   X,
-  RefreshCw
+  RefreshCw,
+  MessageSquare
 } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import { FileState, ConversionStatus, ConversionProgress } from './types';
@@ -355,6 +356,16 @@ const App: React.FC = () => {
             <Video className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
           </div>
           <h1 className="text-sm font-bold text-white tracking-tight">Audio to YouTube MP4</h1>
+          <a
+            href="https://github.com/Dathaze20/AUDIO-TO-YOUTUBE-MP4/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto p-2 text-slate-500 hover:text-slate-300 active:text-slate-200 transition-colors rounded-lg focus-visible:outline-2 focus-visible:outline-indigo-500"
+            aria-label="Send feedback"
+            title="Send feedback"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </a>
         </div>
         <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
       </header>
