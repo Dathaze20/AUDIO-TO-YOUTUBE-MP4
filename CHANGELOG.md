@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.3 — 2026-07-18
+
+- Visual overhaul: deep-space background with ambient CSS orbs (indigo, violet, pink)
+- Glassmorphic UI throughout: header, file uploaders, progress card, error state
+- Animated waveform bars during conversion; shimmer traveling highlight on progress bar
+- Button glow pulses on the Create Video button when both files are ready
+- Success ring pulse animation on the completion screen
+- File uploader cards shift from indigo-tinted (empty) to emerald-tinted (selected)
+- All effects are pure CSS — no changes to conversion logic
+
 ## v1.0.2 — 2026-07-14
 
 - Clarified output format: Android Chrome produces WebM (VP8/Opus); MP4 where supported
