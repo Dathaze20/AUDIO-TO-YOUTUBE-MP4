@@ -9,7 +9,7 @@ html, body, #root {
 }
 
 body {
-  background-color: #0f172a;
+  background-color: #060612;
   color: #f1f5f9;
   -webkit-tap-highlight-color: transparent;
   overflow-x: hidden;
@@ -21,23 +21,72 @@ canvas {
   image-rendering: crisp-edges;
 }
 
-::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.3);
-  border-radius: 10px;
-}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 10px; }
 
 *:focus-visible {
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
+
+/* Ambient orbs */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Progress bar shimmer */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.progress-shimmer {
+  background: linear-gradient(
+    90deg,
+    #6366f1 0%,
+    #8b5cf6 40%,
+    #a78bfa 50%,
+    #8b5cf6 60%,
+    #6366f1 100%
+  );
+  background-size: 200% auto;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Waveform bars */
+@keyframes wave1 { 0%,100%{height:6px}  50%{height:18px} }
+@keyframes wave2 { 0%,100%{height:10px} 50%{height:24px} }
+@keyframes wave3 { 0%,100%{height:14px} 50%{height:8px}  }
+@keyframes wave4 { 0%,100%{height:8px}  50%{height:20px} }
+@keyframes wave5 { 0%,100%{height:16px} 50%{height:6px}  }
+
+.wave-bar { width: 3px; border-radius: 2px; transition: height 0.2s; }
+.wave-bar:nth-child(1) { animation: wave1 0.9s ease-in-out infinite; }
+.wave-bar:nth-child(2) { animation: wave2 0.7s ease-in-out infinite 0.1s; }
+.wave-bar:nth-child(3) { animation: wave3 0.8s ease-in-out infinite 0.2s; }
+.wave-bar:nth-child(4) { animation: wave4 1.0s ease-in-out infinite 0.15s; }
+.wave-bar:nth-child(5) { animation: wave5 0.75s ease-in-out infinite 0.05s; }
+
+/* Success ring pulse */
+@keyframes ring-pulse {
+  0%   { transform: scale(0.85); opacity: 0.6; }
+  70%  { transform: scale(1.15); opacity: 0; }
+  100% { transform: scale(0.85); opacity: 0; }
+}
+.success-ring {
+  animation: ring-pulse 1.8s ease-out infinite;
+}
+
+/* Button ready glow */
+@keyframes btn-glow {
+  0%,100% { box-shadow: 0 0 20px 0px rgba(99,102,241,0.4); }
+  50%      { box-shadow: 0 0 32px 4px rgba(139,92,246,0.55); }
+}
+.btn-glow { animation: btn-glow 2.5s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
