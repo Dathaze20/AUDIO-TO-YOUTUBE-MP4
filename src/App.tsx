@@ -8,7 +8,8 @@ import {
   AlertCircle,
   X,
   RefreshCw,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import { FileState, ConversionStatus, ConversionProgress } from './types';
@@ -329,40 +330,60 @@ const App: React.FC = () => {
   const isError = conversionState.status === ConversionStatus.ERROR;
   const isComplete = conversionState.status === ConversionStatus.COMPLETED;
 
+  const isPaused = conversionState.message.startsWith('Paused');
+
   return (
-    <div className="h-[100dvh] flex flex-col bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-slate-100 font-sans overflow-hidden">
-      <header className="shrink-0">
-        <div className="px-4 py-3.5 flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Video className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+    <div className="h-[100dvh] flex flex-col text-slate-100 font-sans overflow-hidden relative" style={{ background: '#060612' }}>
+
+      {/* Ambient background orbs — CSS only, zero JS */}
+      <div className="orb w-72 h-72 top-[-60px] left-[-60px] opacity-30" style={{ background: 'radial-gradient(circle, #6366f1, transparent 70%)' }} />
+      <div className="orb w-64 h-64 bottom-[-40px] right-[-40px] opacity-20" style={{ background: 'radial-gradient(circle, #8b5cf6, transparent 70%)' }} />
+      <div className="orb w-48 h-48 top-[40%] right-[-30px] opacity-10" style={{ background: 'radial-gradient(circle, #ec4899, transparent 70%)' }} />
+
+      {/* Header */}
+      <header className="shrink-0 relative z-10">
+        <div className="px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(6,6,18,0.7)', backdropFilter: 'blur(20px)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg relative" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+            <div className="absolute inset-0 rounded-xl opacity-40" style={{ background: 'linear-gradient(135deg, #a78bfa, transparent)', filter: 'blur(4px)' }} />
+            <Video className="w-[18px] h-[18px] text-white relative z-10" strokeWidth={2.5} />
           </div>
-          <h1 className="text-sm font-bold text-white tracking-tight">Audio to YouTube MP4</h1>
+          <div className="flex flex-col">
+            <h1 className="text-sm font-bold tracking-tight leading-none" style={{ background: 'linear-gradient(90deg, #e0e7ff, #c4b5fd)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Audio to YouTube MP4
+            </h1>
+            <span className="text-[10px] text-slate-500 leading-none mt-0.5">v1.0.2</span>
+          </div>
           <a
             href="https://github.com/Dathaze20/AUDIO-TO-YOUTUBE-MP4/issues/new"
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto p-2 text-slate-500 hover:text-slate-300 active:text-slate-200 transition-colors rounded-lg focus-visible:outline-2 focus-visible:outline-indigo-500"
+            className="ml-auto p-2 text-slate-600 hover:text-slate-300 active:text-slate-200 transition-colors rounded-lg focus-visible:outline-2 focus-visible:outline-indigo-500"
             aria-label="Send feedback"
             title="Send feedback"
           >
             <MessageSquare className="w-4 h-4" />
           </a>
         </div>
-        <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
+        <div className="h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.4), rgba(139,92,246,0.4), transparent)' }} />
       </header>
 
-      <main className="flex-1 min-h-0 overflow-hidden">
+      <main className="flex-1 min-h-0 overflow-hidden relative z-10">
         <div className="max-w-xl mx-auto px-4 py-2 sm:py-4 flex flex-col gap-2 sm:gap-3 h-full">
 
           {/* ERROR */}
           {isError && (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 py-8">
-              <AlertCircle className="w-12 h-12 text-red-400" />
-              <h3 className="text-lg font-bold text-white text-center">Conversion Failed</h3>
-              <p className="text-sm text-red-300/80 text-center max-w-xs">{conversionState.message}</p>
+              <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <AlertCircle className="w-10 h-10 text-red-400" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-white">Conversion Failed</h3>
+                <p className="text-sm mt-1 max-w-xs" style={{ color: 'rgba(252,165,165,0.8)' }}>{conversionState.message}</p>
+              </div>
               <button
                 onClick={resetAll}
-                className="w-full max-w-xs py-3.5 bg-slate-800 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+                className="w-full max-w-xs py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+                style={{ background: 'rgba(30,30,60,0.8)', border: '1px solid rgba(99,102,241,0.3)', color: '#e0e7ff' }}
               >
                 <RotateCcw className="w-4 h-4" />
                 Try Again
@@ -374,16 +395,17 @@ const App: React.FC = () => {
           {isIdle && !resultVideoUrl && (
             <div className="flex flex-col flex-1 min-h-0">
               <div className="text-center pt-1 pb-1">
-                <h2 className="text-xl font-extrabold text-white tracking-tight">
-                  Create a <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">YouTube-Ready Video</span>
+                <h2 className="text-xl font-extrabold tracking-tight">
+                  <span className="text-white">Create a </span>
+                  <span style={{ background: 'linear-gradient(90deg, #818cf8, #a78bfa, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    YouTube-Ready Video
+                  </span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Pick a cover image and audio file, then tap create.
-                </p>
+                <p className="text-xs text-slate-500 mt-0.5">Pick a cover image and audio file, then tap create.</p>
               </div>
 
               {validationError && (
-                <div className="bg-red-950/30 border border-red-500/30 rounded-xl px-4 py-2.5 flex items-start gap-3 mb-2">
+                <div className="rounded-xl px-4 py-2.5 flex items-start gap-3 mb-2" style={{ background: 'rgba(127,29,29,0.3)', border: '1px solid rgba(239,68,68,0.25)' }}>
                   <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                   <p className="text-sm text-red-300">{validationError}</p>
                 </div>
@@ -399,7 +421,6 @@ const App: React.FC = () => {
                   onFileSelect={handleImageSelect}
                   icon={<ImageIcon className="w-7 h-7" />}
                 />
-
                 <FileUploader
                   label="2. Audio File"
                   accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac,audio/mp4,audio/x-m4a"
@@ -411,7 +432,7 @@ const App: React.FC = () => {
               </div>
 
               {audioDuration && (
-                <p className="text-xs text-slate-500 text-center mt-1">
+                <p className="text-xs text-slate-600 text-center mt-1">
                   Duration: {audioDuration} &middot; Conversion takes about the same time
                 </p>
               )}
@@ -420,21 +441,22 @@ const App: React.FC = () => {
                 <button
                   disabled={!canConvert}
                   onClick={startConversion}
-                  className={`w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-[0.97] flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-indigo-500 ${
-                    canConvert
-                      ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25'
-                      : 'bg-slate-800/60 text-slate-600 border border-slate-700/30'
-                  }`}
+                  className={`w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-[0.97] flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-indigo-500 ${canConvert ? 'btn-glow' : ''}`}
+                  style={canConvert
+                    ? { background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: '#fff', border: '1px solid rgba(139,92,246,0.5)' }
+                    : { background: 'rgba(15,15,30,0.6)', color: 'rgba(100,116,139,0.7)', border: '1px solid rgba(51,65,85,0.3)' }
+                  }
                 >
-                  <Video className="w-5 h-5" />
+                  {canConvert ? <Sparkles className="w-5 h-5" /> : <Video className="w-5 h-5" />}
                   Create Video
                 </button>
 
                 <p className="text-xs text-slate-600 text-center pb-0.5">
                   {!canConvert
-                    ? (!image.file && !audio.file ? 'Select a cover image and audio file to start' :
-                       !image.file ? 'Select a cover image to continue' : 'Select an audio file to continue')
-                    : 'Creates MP4 or WebM depending on your browser. Both upload to YouTube.'}
+                    ? (!image.file && !audio.file ? 'Select a cover image and audio file to start'
+                      : !image.file ? 'Select a cover image to continue'
+                      : 'Select an audio file to continue')
+                    : 'Creates MP4 or WebM depending on your browser · Both upload to YouTube'}
                 </p>
               </div>
             </div>
@@ -442,70 +464,107 @@ const App: React.FC = () => {
 
           {/* CONVERTING */}
           {isConverting && (
-            <div className="flex-1 flex flex-col gap-4 justify-center py-4">
-              <div className="aspect-video rounded-xl overflow-hidden bg-black border border-slate-700 relative">
+            <div className="flex-1 flex flex-col gap-3 justify-center py-2">
+              {/* Canvas preview */}
+              <div className="aspect-video rounded-2xl overflow-hidden relative" style={{
+                border: `1px solid ${isPaused ? 'rgba(217,119,6,0.4)' : 'rgba(99,102,241,0.35)'}`,
+                boxShadow: isPaused ? '0 0 24px rgba(217,119,6,0.15)' : '0 0 32px rgba(99,102,241,0.2)',
+                background: '#000'
+              }}>
                 <canvas ref={canvasRef} className="w-full h-full object-contain" />
-                <div className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded flex items-center gap-1.5 ${conversionState.message.startsWith('Paused') ? 'bg-amber-600' : 'bg-red-600'}`}>
-                  <div className={`w-1.5 h-1.5 bg-white rounded-full ${conversionState.message.startsWith('Paused') ? '' : 'animate-pulse'}`} />
-                  <span className="text-[10px] text-white font-bold uppercase tracking-wide">{conversionState.message.startsWith('Paused') ? 'PAUSED' : 'REC'}</span>
+                {/* REC / PAUSED badge */}
+                <div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-lg flex items-center gap-1.5" style={{
+                  background: isPaused ? 'rgba(180,83,9,0.85)' : 'rgba(220,38,38,0.85)',
+                  backdropFilter: 'blur(8px)',
+                  border: `1px solid ${isPaused ? 'rgba(251,191,36,0.3)' : 'rgba(248,113,113,0.3)'}`,
+                }}>
+                  <div className={`w-1.5 h-1.5 rounded-full bg-white ${isPaused ? '' : 'animate-pulse'}`} />
+                  <span className="text-[10px] text-white font-bold uppercase tracking-widest">{isPaused ? 'PAUSED' : 'REC'}</span>
                 </div>
+                {/* Animated waveform — visible only when recording */}
+                {!isPaused && (
+                  <div className="absolute bottom-2.5 right-2.5 flex items-end gap-0.5">
+                    {[1,2,3,4,5].map(i => (
+                      <div key={i} className="wave-bar" style={{ background: 'rgba(165,180,252,0.7)' }} />
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between items-baseline">
+              {/* Progress info */}
+              <div className="rounded-2xl p-4 space-y-3" style={{ background: 'rgba(15,15,35,0.7)', border: '1px solid rgba(99,102,241,0.15)', backdropFilter: 'blur(12px)' }}>
+                <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-base font-bold text-white">Converting...</h3>
-                    <p className="text-sm text-slate-400">{conversionState.message}</p>
+                    <h3 className="text-sm font-bold" style={{ color: isPaused ? '#fcd34d' : '#e0e7ff' }}>
+                      {isPaused ? 'Paused' : 'Converting...'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">{conversionState.message}</p>
                   </div>
-                  <span className="text-2xl sm:text-3xl font-bold text-indigo-400 tabular-nums">{conversionState.progress}%</span>
+                  <span className="text-2xl font-bold tabular-nums" style={{ background: 'linear-gradient(90deg, #818cf8, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    {conversionState.progress}%
+                  </span>
                 </div>
 
                 <div
-                  className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden"
+                  className="h-2 w-full rounded-full overflow-hidden"
                   role="progressbar"
                   aria-valuenow={conversionState.progress}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-label="Conversion progress"
+                  style={{ background: 'rgba(30,27,75,0.8)' }}
                 >
                   <div
-                    className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-[width] duration-300"
-                    style={{ width: `${conversionState.progress}%` }}
+                    className={`h-full rounded-full transition-[width] duration-300 ${!isPaused ? 'progress-shimmer' : ''}`}
+                    style={{
+                      width: `${conversionState.progress}%`,
+                      ...(isPaused ? { background: 'linear-gradient(90deg, #d97706, #f59e0b)' } : {})
+                    }}
                   />
                 </div>
 
-                <p className="text-xs text-slate-500 text-center">
-                  {conversionState.message.startsWith('Paused')
-                    ? 'Return to this tab to resume'
-                    : 'Keep this tab open · Screen will stay on'}
+                <p className="text-xs text-center" style={{ color: 'rgba(100,116,139,0.8)' }}>
+                  {isPaused ? 'Return to this tab to resume' : 'Keep this tab open · Screen will stay on'}
                 </p>
-
-                <button
-                  onClick={cancelConversion}
-                  className="w-full py-3 text-slate-400 font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform rounded-xl border border-slate-700/50 focus-visible:outline-2 focus-visible:outline-indigo-500"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
               </div>
+
+              <button
+                onClick={cancelConversion}
+                className="w-full py-2.5 font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform rounded-xl focus-visible:outline-2 focus-visible:outline-indigo-500"
+                style={{ color: 'rgba(100,116,139,0.8)', border: '1px solid rgba(51,65,85,0.4)' }}
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
             </div>
           )}
 
           {/* COMPLETE */}
           {isComplete && resultVideoUrl && (
             <div className="flex-1 flex flex-col items-center justify-center gap-5 py-4">
-              <CheckCircle2 className="w-16 h-16 text-emerald-400" />
+              {/* Success icon with ring pulse */}
+              <div className="relative flex items-center justify-center">
+                <div className="success-ring absolute w-24 h-24 rounded-full" style={{ border: '2px solid rgba(52,211,153,0.5)' }} />
+                <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(52,211,153,0.25)' }}>
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+                </div>
+              </div>
+
               <div className="text-center">
-                <h2 className="text-xl font-bold text-white">Video Saved as .{outputExt}</h2>
-                <p className="text-sm text-slate-400 mt-1">Check your Downloads folder</p>
+                <h2 className="text-xl font-bold text-white">Video Saved</h2>
+                <p className="text-sm mt-0.5" style={{ background: 'linear-gradient(90deg, #818cf8, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 600 }}>
+                  as .{outputExt}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">Check your Downloads folder</p>
               </div>
 
               <button
                 onClick={resetAll}
-                className="w-16 h-16 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center active:scale-[0.95] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+                className="w-16 h-16 rounded-full flex items-center justify-center active:scale-[0.95] transition-transform focus-visible:outline-2 focus-visible:outline-indigo-500"
+                style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' }}
                 aria-label="Convert another video"
               >
-                <RefreshCw className="w-7 h-7" />
+                <RefreshCw className="w-6 h-6" />
               </button>
               <p className="text-xs text-slate-600">Tap to convert another</p>
             </div>

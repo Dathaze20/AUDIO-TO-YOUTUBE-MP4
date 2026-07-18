@@ -26,14 +26,18 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     <button
       type="button"
       onClick={() => inputRef.current?.click()}
-      className={`
-        w-full flex-1 rounded-2xl flex flex-col items-center justify-center gap-2.5 p-4
-        transition-all duration-200 active:scale-[0.98] min-h-[100px] max-h-[200px]
-        focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500
-        ${selectedFileName
-          ? 'bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_20px_-3px_rgba(16,185,129,0.15)]'
-          : 'bg-slate-800/40 border border-slate-700/40 shadow-lg shadow-black/20'}
-      `}
+      className="w-full flex-1 rounded-2xl flex flex-col items-center justify-center gap-2.5 p-4 transition-all duration-200 active:scale-[0.98] min-h-[100px] max-h-[200px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+      style={selectedFileName ? {
+        background: 'rgba(16,185,129,0.06)',
+        border: '1px solid rgba(52,211,153,0.25)',
+        boxShadow: '0 0 20px -4px rgba(16,185,129,0.12), inset 0 1px 0 rgba(52,211,153,0.08)',
+        backdropFilter: 'blur(12px)',
+      } : {
+        background: 'rgba(15,15,35,0.5)',
+        border: '1px solid rgba(99,102,241,0.15)',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.03)',
+        backdropFilter: 'blur(12px)',
+      }}
       aria-label={selectedFileName ? `${label}: ${selectedFileName}. Tap to change.` : `${label}. Tap to select file.`}
     >
       <input
@@ -48,12 +52,18 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         className="hidden"
       />
 
-      <div className={`
-        w-14 h-14 rounded-xl flex items-center justify-center shrink-0 overflow-hidden
-        ${selectedFileName
-          ? 'bg-emerald-500/20 text-emerald-400'
-          : 'bg-gradient-to-br from-slate-700/60 to-slate-700/30 text-slate-400'}
-      `}>
+      <div
+        className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
+        style={selectedFileName ? {
+          background: 'rgba(16,185,129,0.15)',
+          border: '1px solid rgba(52,211,153,0.2)',
+          color: '#6ee7b7',
+        } : {
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))',
+          border: '1px solid rgba(99,102,241,0.15)',
+          color: 'rgba(148,163,184,0.7)',
+        }}
+      >
         {previewUrl ? (
           <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
         ) : icon}
@@ -61,12 +71,18 @@ const FileUploader: React.FC<FileUploaderProps> = ({
 
       <div className="text-center min-w-0 w-full px-2 overflow-hidden">
         <div className="flex items-center justify-center gap-1.5">
-          <span className={`text-sm font-semibold truncate max-w-[80%] ${selectedFileName ? 'text-emerald-400' : 'text-white'}`}>
+          <span
+            className="text-sm font-semibold truncate max-w-[80%]"
+            style={selectedFileName
+              ? { background: 'linear-gradient(90deg, #6ee7b7, #34d399)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }
+              : { color: 'rgba(224,231,255,0.85)' }
+            }
+          >
             {selectedFileName || label}
           </span>
           {selectedFileName && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
         </div>
-        <span className="text-xs text-slate-500 block mt-0.5">
+        <span className="text-xs block mt-0.5" style={{ color: 'rgba(100,116,139,0.7)' }}>
           {selectedFileName ? 'Tap to change' : hint}
         </span>
       </div>
