@@ -47,9 +47,24 @@ npm run build
 
 The built files will be in the `dist/` folder, ready for static hosting.
 
+## Tests, Linting, and Type Checking
+
+```bash
+npm test          # Vitest unit/component tests
+npm run lint      # ESLint
+npm run typecheck # TypeScript strict check (tsc --noEmit)
+```
+
+`npm run build` runs `tsc --noEmit` before Vite bundles the app, so the production build is always type-checked.
+
 ## Deployment
 
-A GitHub Actions workflow (`.github/workflows/deploy.yml`) builds and deploys to GitHub Pages automatically on every push to `main`. See `DEPLOYMENT.md` for manual deployment and alternative hosting options (Netlify, Vercel, Cloudflare Pages).
+The CI workflow (`.github/workflows/deploy.yml`) has two jobs:
+
+- **test** — runs on every push to `main` and on every pull request targeting `main`: installs dependencies, runs `npm run lint`, `npm test`, and `npm run build`.
+- **deploy** — runs only after `test` succeeds and only on pushes to `main`: builds the app and publishes the `dist/` folder to GitHub Pages automatically.
+
+See `DEPLOYMENT.md` for manual deployment and alternative hosting options (Netlify, Vercel, Cloudflare Pages).
 
 ## Mobile
 
