@@ -2,7 +2,7 @@
 
 **[Live App →](https://dathaze20.github.io/AUDIO-TO-YOUTUBE-MP4/)**
 
-A browser-based tool that turns any audio file and a cover image into a YouTube-ready video — no video editor, no account, no server uploads. Everything runs entirely in your browser.
+A browser-based tool that turns a supported audio file and a cover image into a YouTube-ready video — no video editor, no account, no server uploads. Everything runs entirely in your browser.
 
 ---
 
@@ -24,8 +24,8 @@ YouTube doesn't accept bare audio files. If you record a podcast, produce a musi
 
 ### Mobile & Interruption Handling
 - Designed and tested on **Android Chrome** (Samsung Galaxy A16)
-- Conversion **pauses automatically** when a phone call arrives or you switch apps — **resumes** when you return to the tab
-- **Screen Wake Lock** keeps the display on for the full duration so Android doesn't suspend the tab mid-conversion
+- When the tab becomes hidden (app switch, screen lock), the app **attempts** to pause recording and resume when you return. Brief interruptions typically resume successfully; a long phone call or a system resource event may terminate the recording, in which case a retry is required.
+- Requests a **Screen Wake Lock** to try to keep the display on during conversion so Android is less likely to suspend the tab
 - **Live progress bar** with elapsed/total time in `M:SS` format, updating every 200 ms
 - **Auto-download** — the video file saves to your Downloads folder the moment conversion finishes, with no extra tap
 
@@ -43,7 +43,7 @@ YouTube doesn't accept bare audio files. If you record a podcast, produce a musi
 ### Progressive Web App
 - **Installable on Android Chrome** via *Add to Home Screen*
 - Service worker caches the app shell after the first load — the app opens offline
-- Auto-updates on every page load when online: the service worker fetches the latest version and reloads; you always get the newest release
+- When opened online, the page checks for a newer service worker on every load and reloads automatically if one activates — an additional manual reload may occasionally be needed before a freshly deployed update takes effect
 
 ---
 
@@ -77,7 +77,7 @@ Nothing leaves your device at any point.
 1. Open the [live app](https://dathaze20.github.io/AUDIO-TO-YOUTUBE-MP4/) in **Chrome on Android**.
 2. Tap the browser menu (⋮) → **Add to Home Screen**.
 3. The app appears on your home screen and opens in standalone mode (no browser chrome).
-4. When online, reloading checks for updates and applies them automatically.
+4. When opened online, the app checks for updates on every load. A manual reload may occasionally be needed before a newly deployed version takes effect.
 
 ---
 
@@ -169,7 +169,7 @@ Cover image (JPG / PNG / WebP)                  │
 
 **Canvas warmup**: the cover image is painted to the canvas before `captureStream()` is called, so the video track is active from the first frame on mobile Chrome.
 
-**Interruption handling**: a `visibilitychange` listener pauses `MediaRecorder`, the HTMLAudioElement, and the `requestAnimationFrame` loop when the tab hides (phone call, app switch), then resumes all three when the tab becomes visible again.
+**Interruption handling**: a `visibilitychange` listener attempts to pause `MediaRecorder`, the HTMLAudioElement, and the `requestAnimationFrame` loop when the tab hides, then resume them when it becomes visible again. Recovery works when `MediaRecorder` is still in the `'paused'` state; a system event that moves it to `'inactive'` (e.g. a long phone call) cannot be recovered automatically — the user must retry.
 
 ---
 
