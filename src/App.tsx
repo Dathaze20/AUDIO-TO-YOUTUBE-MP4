@@ -46,6 +46,8 @@ const App: React.FC = () => {
   const audioUrlRef = useRef<string | null>(null);
   const drawFnRef = useRef<(() => void) | null>(null);
   const isPausedRef = useRef(false);
+  // 'natural' = audio ended normally, 'cancel' = user cancelled/reset, null = unexpected browser stop
+  const stopReasonRef = useRef<'natural' | 'cancel' | null>(null);
 
   // Pause/resume conversion when the tab loses/regains visibility (phone calls, app switching)
   useEffect(() => {
@@ -62,6 +64,17 @@ const App: React.FC = () => {
       } else if (document.visibilityState === 'visible' && isPausedRef.current) {
         // Resume everything
         isPausedRef.current = false;
+
+        // Recorder was force-stopped by the browser during the interruption (e.g. long phone call).
+        // onstop already fired (or will fire shortly) and will surface the error state.
+        // Don't restart audio or the RAF loop — just clean up and let onstop handle the UI.
+        if (recorderRef.current?.state === 'inactive' && stopReasonRef.current === null) {
+          if (renderLoopRef.current) { cancelAnimationFrame(renderLoopRef.current); renderLoopRef.current = null; }
+          if (wakeLockRef.current) { try { wakeLockRef.current.release(); } catch {} wakeLockRef.current = null; }
+          drawFnRef.current = null;
+          return;
+        }
+
         if ('wakeLock' in navigator) {
           try { wakeLockRef.current = await navigator.wakeLock.request('screen'); } catch {}
         }
@@ -124,6 +137,7 @@ const App: React.FC = () => {
   }, []);
 
   const cancelConversion = useCallback(() => {
+    stopReasonRef.current = 'cancel';
     stopRecording();
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
     setConversionState({ status: ConversionStatus.IDLE, progress: 0, message: '' });
@@ -131,6 +145,7 @@ const App: React.FC = () => {
   }, [stopRecording]);
 
   const resetAll = useCallback(() => {
+    stopReasonRef.current = 'cancel';
     stopRecording();
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
     if (resultVideoUrl) URL.revokeObjectURL(resultVideoUrl);
@@ -151,6 +166,7 @@ const App: React.FC = () => {
     vibrate(30);
 
     try {
+      stopReasonRef.current = null;
       setConversionState({ status: ConversionStatus.CONVERTING, progress: 0, message: 'Preparing...' });
 
       if ('wakeLock' in navigator) {
@@ -265,15 +281,27 @@ const App: React.FC = () => {
       };
 
       recorder.onstop = () => {
-        const finalBlob = new Blob(chunks, { type: mimeType });
-        const url = URL.createObjectURL(finalBlob);
-        setResultVideoUrl(url);
-        setConversionState({ status: ConversionStatus.COMPLETED, progress: 100, message: 'Done' });
-        vibrate([40, 60, 40, 60, 80]);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `youtube-video-${Date.now()}.${ext}`;
-        a.click();
+        if (stopReasonRef.current === 'natural') {
+          // Audio finished normally — download the complete video.
+          const finalBlob = new Blob(chunks, { type: mimeType });
+          const url = URL.createObjectURL(finalBlob);
+          setResultVideoUrl(url);
+          setConversionState({ status: ConversionStatus.COMPLETED, progress: 100, message: 'Done' });
+          vibrate([40, 60, 40, 60, 80]);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `youtube-video-${Date.now()}.${ext}`;
+          a.click();
+        } else if (stopReasonRef.current === null) {
+          // Browser force-stopped the recorder (phone call, system resource pressure).
+          // Do not download a partial file.
+          vibrate([100, 50, 100]);
+          setConversionState({
+            status: ConversionStatus.ERROR, progress: 0,
+            message: 'Recording was cut off — likely by a phone call or system interruption. Please try again.'
+          });
+        }
+        // 'cancel': user cancelled or reset — caller already set the correct UI state.
       };
 
       let lastUpdate = 0;
@@ -301,6 +329,7 @@ const App: React.FC = () => {
         }
 
         if (audioRef.current.ended || (duration > 0 && time >= duration)) {
+          stopReasonRef.current = 'natural';
           stopRecording();
           return;
         }
